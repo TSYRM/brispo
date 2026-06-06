@@ -1,0 +1,3551 @@
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useNavigate } from "react-router-dom";
+import {
+  Home,
+  Users,
+  FileText,
+  BarChart3,
+  LogOut,
+  Menu,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Clock,
+  Activity,
+  Bell,
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+  Phone,
+  Mail,
+  Calendar,
+  User,
+  AlertCircle,
+  AlertTriangle,
+  Settings,
+  History,
+  Shield,
+  Download,
+  Package,
+  Square,
+  CheckSquare,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  X,
+  ImageIcon,
+  Languages,
+  MessageSquare,
+  ClipboardList,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { useStaffAuthContext } from "@/context/StaffAuthContext";
+import { useBarangayStats } from "@/context/BarangayStatsContext";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchActiveAnnouncements,
+} from "@/utils/api";
+import {
+  getCertificateRequests,
+  updateCertificateRequestStatus,
+  getCertificateIdByControlNumber,
+  getAnnouncementsForStaff,
+  createAnnouncementStaff,
+  updateAnnouncementStaff,
+  deleteAnnouncementStaff,
+  getPendingRegistrations,
+  approveResident,
+  rejectResident,
+  getAllIncidentsForStaff,
+  getPendingIncidentsCount,
+  getPendingCertificatesCount,
+  getPendingEcologicalCount,
+  
+  getPendingNameChangeRequestsCount,
+  getStaffUnreadMessageCount,
+} from "@/utils/staffApi";
+import { format } from "date-fns";
+import { MapPin, Search } from "lucide-react";
+import { 
+  downloadCertificatePdf, 
+  logCertificateGeneration,
+  bulkDownloadCertificates,
+  logBulkCertificateDownload,
+  logBatchStatusUpdate,
+} from "@/utils/certificatePdf";
+import StaffChatWidget from "@/components/StaffChatWidget";
+import ResidentsTab from "@/components/staff/ResidentsTab";
+import HouseholdsTab from "@/components/staff/HouseholdsTab";
+import IncidentsTab from "@/components/staff/IncidentsTab";
+import SettingsTab from "@/components/staff/SettingsTab";
+
+import ViewReportsTab from "@/components/staff/ViewReportsTab";
+import NameChangeRequestsTab from "@/components/staff/NameChangeRequestsTab";
+import EcologicalProfileTab from "@/components/staff/EcologicalProfileTab";
+import EcologicalSubmissionsTab from "@/components/staff/EcologicalSubmissionsTab";
+
+import CertificateRequestForm from "@/components/CertificateRequestForm";
+import CertificateRequestCard from "@/components/staff/CertificateRequestCard";
+import MonitoringReportsTab from "@/components/staff/MonitoringReportsTab";
+import StaffMessagesTab from "@/components/staff/StaffMessagesTab";
+import { hasPermission, canAccessAdminSection, FeatureKey } from "@/utils/rolePermissions";
+
+interface PendingRequest {
+  id: string;
+  dbId?: string;
+  residentName: string;
+  certificateType: string;
+  customCertificateName?: string;
+  dateSubmitted: string;
+  status: "pending" | "processing" | "approved" | "rejected" | "verifying" | "released" | "under review" | "incomplete requirements" | "ready for pickup";
+  verificationStatus?: "verified" | "not-verified" | "checking";
+  residentId?: string;
+  processedBy?: string;
+  processedDate?: string;
+  notes?: string;
+  contactNumber?: string;
+  email?: string;
+  householdNumber?: string;
+  purpose?: string;
+  priority?: string;
+  readyDate?: string;
+  rejectionReason?: string;
+  residentNotes?: string;
+  birthDate?: string;
+}
+
+interface Announcement {
+  id: string;
+  type: "important" | "general";
+  title: string;
+  titleTl: string;
+  description: string;
+  descriptionTl: string;
+  date: string;
+  imageUrl?: string;
+}
+
+const CollapsibleGroup = ({ label, children, defaultOpen = false, isCollapsed, forceOpen = false }: { 
+  label: string; 
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  isCollapsed: boolean;
+  forceOpen?: boolean;
+}) => {
+  if (isCollapsed) {
+    return (
+      <SidebarGroup>
+        <SidebarGroupContent>
+          {children}
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  }
+
+  const isOpen = forceOpen || defaultOpen;
+
+  return (
+    <Collapsible defaultOpen={isOpen} open={forceOpen ? true : undefined} className="group/collapsible">
+      <SidebarGroup>
+        <SidebarGroupLabel asChild>
+          <CollapsibleTrigger className={`flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wider transition-colors ${forceOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+            {label}
+            <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            {children}
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
+  );
+};
+
+
+const StaffSidebar = ({ 
+  activeTab, 
+  setActiveTab, 
+  onLogout,
+  userRole,
+  pendingRegistrationCount,
+  pendingEcologicalCount,
+  pendingNameChangeCount,
+  pendingIncidentsCount,
+  pendingCertificatesCount,
+  unreadMessagesCount,
+}: { 
+  activeTab: string; 
+  setActiveTab: (tab: string) => void;
+  onLogout: () => void;
+  userRole?: string;
+  pendingRegistrationCount?: number;
+  pendingEcologicalCount?: number;
+  pendingNameChangeCount?: number;
+  pendingIncidentsCount?: number;
+  pendingCertificatesCount?: number;
+  unreadMessagesCount?: number;
+}) => {
+  const { state } = useSidebar();
+  const navigate = useNavigate();
+  const isCollapsed = state === "collapsed";
+
+  const handleMenuClick = useCallback((tab: string) => {
+    setActiveTab(tab);
+  }, [setActiveTab]);
+
+  // Determine which group the active tab belongs to
+  const serviceTabs = ["certificate-requests", "incidents"];
+  const censusTabs = ["ecological-census", "monitoring-reports", "view-reports"];
+  const registryTabs = ["registry"];
+  const communicationTabs = ["announcements", "messages"];
+  const adminTabs = ["resident-approval", "name-change-requests", "settings"];
+
+  const isInServices = serviceTabs.includes(activeTab);
+  const isInCensus = censusTabs.includes(activeTab);
+  const isInRegistry = registryTabs.includes(activeTab);
+  const isInCommunication = communicationTabs.includes(activeTab);
+  const isInAdmin = adminTabs.includes(activeTab);
+
+  const MenuItem = useCallback(({ title, icon: Icon, tab, badge }: { title: string; icon: any; tab: string; badge?: number }) => (
+    <SidebarMenuItem className="relative">
+      <SidebarMenuButton
+        tooltip={title}
+        isActive={activeTab === tab}
+        onClick={() => handleMenuClick(tab)}
+      >
+        <Icon className="h-4 w-4" />
+        <span className="flex items-center justify-between flex-1">
+          {title}
+          {!isCollapsed && badge && badge > 0 && (
+            <Badge variant="destructive" className="ml-2 h-5 min-w-[20px] px-1.5 text-xs">
+              {badge}
+            </Badge>
+          )}
+        </span>
+      </SidebarMenuButton>
+      {isCollapsed && badge && badge > 0 && (
+        <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center z-10">
+          {badge}
+        </span>
+      )}
+    </SidebarMenuItem>
+  ), [activeTab, isCollapsed, handleMenuClick]);
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarContent>
+        <div className={isCollapsed ? "p-2" : "p-4"}>
+          {!isCollapsed && (
+            <h2 className="font-bold text-lg text-primary">Staff Portal</h2>
+          )}
+        </div>
+        
+        {/* Home */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <MenuItem title="Home" icon={Home} tab="home" />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Services */}
+        <CollapsibleGroup label="Services" defaultOpen isCollapsed={isCollapsed} forceOpen={isInServices}>
+          <SidebarMenu>
+            {hasPermission(userRole, "certificate_requests") && (
+              <MenuItem title="Certificates" icon={FileText} tab="certificate-requests" badge={pendingCertificatesCount && pendingCertificatesCount > 0 ? pendingCertificatesCount : undefined} />
+            )}
+            {hasPermission(userRole, "incidents") && (
+              <MenuItem title="Incident / Blotter" icon={AlertTriangle} tab="incidents" badge={pendingIncidentsCount && pendingIncidentsCount > 0 ? pendingIncidentsCount : undefined} />
+            )}
+          </SidebarMenu>
+        </CollapsibleGroup>
+
+        {/* Census & Reports */}
+        <CollapsibleGroup label="Census & Reports" isCollapsed={isCollapsed} forceOpen={isInCensus}>
+          <SidebarMenu>
+            {(hasPermission(userRole, "ecological_profile") || hasPermission(userRole, "ecological_submissions")) && (
+              <MenuItem title="Ecological Census" icon={ClipboardList} tab="ecological-census" badge={pendingEcologicalCount && pendingEcologicalCount > 0 ? pendingEcologicalCount : undefined} />
+            )}
+            {hasPermission(userRole, "monitoring_reports") && (
+              <MenuItem title="RBI Form C Reports" icon={FileText} tab="monitoring-reports" />
+            )}
+            {hasPermission(userRole, "view_reports") && (
+              <MenuItem title="Analytics Reports" icon={BarChart3} tab="view-reports" />
+            )}
+          </SidebarMenu>
+        </CollapsibleGroup>
+
+        {/* Registry */}
+        <CollapsibleGroup label="Registry" isCollapsed={isCollapsed} forceOpen={isInRegistry}>
+          <SidebarMenu>
+            {(hasPermission(userRole, "manage_residents") || hasPermission(userRole, "manage_households")) && (
+              <MenuItem title="Residents & Households" icon={Users} tab="registry" />
+            )}
+          </SidebarMenu>
+        </CollapsibleGroup>
+
+        {/* Communication */}
+        <CollapsibleGroup label="Communication" isCollapsed={isCollapsed} forceOpen={isInCommunication}>
+          <SidebarMenu>
+            {hasPermission(userRole, "announcements") && (
+              <MenuItem title="Announcements" icon={Bell} tab="announcements" />
+            )}
+            {hasPermission(userRole, "messages") && (
+              <MenuItem title="Messages" icon={MessageSquare} tab="messages" badge={unreadMessagesCount && unreadMessagesCount > 0 ? unreadMessagesCount : undefined} />
+            )}
+          </SidebarMenu>
+        </CollapsibleGroup>
+
+        {/* Administration */}
+        <CollapsibleGroup label="Administration" defaultOpen isCollapsed={isCollapsed} forceOpen={isInAdmin}>
+          <SidebarMenu>
+            {hasPermission(userRole, "resident_approval") && (
+              <MenuItem title="Resident Approval" icon={CheckCircle} tab="resident-approval" badge={pendingRegistrationCount && pendingRegistrationCount > 0 ? pendingRegistrationCount : undefined} />
+            )}
+            {hasPermission(userRole, "name_change_requests") && (
+              <MenuItem title="Name Change Requests" icon={User} tab="name-change-requests" badge={pendingNameChangeCount && pendingNameChangeCount > 0 ? pendingNameChangeCount : undefined} />
+            )}
+            {hasPermission(userRole, "settings") && (
+              <MenuItem title="Settings" icon={Settings} tab="settings" />
+            )}
+          </SidebarMenu>
+        </CollapsibleGroup>
+
+        {/* Logout */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Logout"
+                  onClick={onLogout}
+                  className="hover:bg-destructive/10 text-destructive"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Logout</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Collapse/Expand toggle */}
+        <div className="mt-auto border-t border-border p-2">
+          <SidebarTrigger className="w-full" />
+        </div>
+      </SidebarContent>
+    </Sidebar>
+  );
+};
+
+
+const StaffDashboard = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useStaffAuthContext();
+  const { totalResidents, pendingRegistrationCount, refreshStats, isLoading: statsLoading } = useBarangayStats();
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeTab, setActiveTab] = useState("home");
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [pendingEcologicalCount, setPendingEcologicalCount] = useState(0);
+  const [pendingNameChangeCount, setPendingNameChangeCount] = useState(0);
+  
+  const [pendingIncidentsCount, setPendingIncidentsCount] = useState(0);
+  const [pendingCertificatesCount, setPendingCertificatesCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [showCreateCertificate, setShowCreateCertificate] = useState(false);
+  const prevUnreadCountRef = useRef(-1); // -1 means initial load, don't play sound
+
+  // Auth is now handled by ProtectedRoute wrapper
+
+  // Notification sound using Web Audio API
+  const playNotificationSound = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.value = 0.3;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+      setTimeout(() => ctx.close(), 500);
+    } catch (e) {
+      // Silent fail if audio not available
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Certificate requests state
+  const [requests, setRequests] = useState<PendingRequest[]>([]);
+  const [recentRequests, setRecentRequests] = useState<PendingRequest[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [selectedRequest, setSelectedRequest] = useState<PendingRequest | null>(null);
+  
+  // Search, sorting, and pagination state for certificate requests
+  const [certSearchQuery, setCertSearchQuery] = useState("");
+  type CertSortField = "date" | "status" | "priority" | "certificateType";
+  type SortOrder = "asc" | "desc";
+  const [certSortField, setCertSortField] = useState<CertSortField>("date");
+  const [certSortOrder, setCertSortOrder] = useState<SortOrder>("desc");
+  const [certCurrentPage, setCertCurrentPage] = useState(1);
+  const CERT_ITEMS_PER_PAGE = 12;
+
+  // Recent incidents state for home page
+  interface RecentIncident {
+    id: string;
+    incidentNumber: string;
+    complainantName: string;
+    incidentType: string;
+    incidentDate: string;
+    approvalStatus: string;
+    reviewedAt?: string;
+  }
+  const [recentIncidents, setRecentIncidents] = useState<RecentIncident[]>([]);
+  const [allIncidents, setAllIncidents] = useState<RecentIncident[]>([]);
+
+  // View Details Dialog state
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [detailsRequest, setDetailsRequest] = useState<PendingRequest | null>(null);
+
+  // Rejection Dialog state
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [requestToReject, setRequestToReject] = useState<PendingRequest | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Update Status Dialog state
+  const [showUpdateStatusDialog, setShowUpdateStatusDialog] = useState(false);
+  const [updateStatusRequest, setUpdateStatusRequest] = useState<PendingRequest | null>(null);
+  const [updateStatusValue, setUpdateStatusValue] = useState("");
+  const [updateStatusRemarks, setUpdateStatusRemarks] = useState("");
+
+  // Bulk selection state
+  const [selectedRequests, setSelectedRequests] = useState<Set<string>>(new Set());
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isBatchUpdating, setIsBatchUpdating] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
+
+  // Resident verification state
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<{
+    verified: boolean;
+    residentId?: string;
+    message: string;
+  } | null>(null);
+
+  // Resident Approval state
+  interface PendingResident {
+    id: string;
+    first_name: string;
+    last_name: string;
+    middle_name: string | null;
+    email: string | null;
+    birth_date: string | null;
+    contact_number: string | null;
+    place_of_origin: string | null;
+    approval_status: string;
+    created_at: string;
+  }
+  const [pendingResidents, setPendingResidents] = useState<PendingResident[]>([]);
+  const [isLoadingResidents, setIsLoadingResidents] = useState(false);
+  const [residentSearchTerm, setResidentSearchTerm] = useState("");
+  const [processingResidentId, setProcessingResidentId] = useState<string | null>(null);
+  const [residentRejectDialogOpen, setResidentRejectDialogOpen] = useState(false);
+  const [selectedResidentForReject, setSelectedResidentForReject] = useState<PendingResident | null>(null);
+  const [residentRejectionReason, setResidentRejectionReason] = useState("");
+
+  // Filtered, sorted, and paginated certificate requests
+  const filteredAndSortedRequests = useMemo(() => {
+    let result = [...requests];
+    
+    // Apply search filter
+    if (certSearchQuery.trim()) {
+      const query = certSearchQuery.toLowerCase();
+      result = result.filter(req => 
+        req.residentName.toLowerCase().includes(query) ||
+        req.id.toLowerCase().includes(query) ||
+        req.certificateType.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply sorting
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (certSortField) {
+        case "date":
+          comparison = new Date(a.dateSubmitted).getTime() - new Date(b.dateSubmitted).getTime();
+          break;
+        case "status":
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case "priority":
+          const priorityOrder: Record<string, number> = { "Urgent": 0, "High": 1, "Normal": 2, "Low": 3 };
+          comparison = (priorityOrder[a.priority || "Normal"] || 2) - (priorityOrder[b.priority || "Normal"] || 2);
+          break;
+        case "certificateType":
+          comparison = a.certificateType.localeCompare(b.certificateType);
+          break;
+      }
+      return certSortOrder === "asc" ? comparison : -comparison;
+    });
+    
+    return result;
+  }, [requests, certSearchQuery, certSortField, certSortOrder]);
+
+  const totalCertPages = Math.ceil(filteredAndSortedRequests.length / CERT_ITEMS_PER_PAGE);
+
+  const paginatedRequests = useMemo(() => {
+    const startIndex = (certCurrentPage - 1) * CERT_ITEMS_PER_PAGE;
+    return filteredAndSortedRequests.slice(startIndex, startIndex + CERT_ITEMS_PER_PAGE);
+  }, [filteredAndSortedRequests, certCurrentPage, CERT_ITEMS_PER_PAGE]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCertCurrentPage(1);
+  }, [certSearchQuery, statusFilter, certSortField, certSortOrder]);
+
+  // Load certificate requests from Supabase
+  const loadRequests = useCallback(async () => {
+    try {
+      // Fetch from staff API - only pass filter if not "All"
+      const filterToSend = statusFilter && statusFilter !== "All" ? statusFilter : undefined;
+      const allData = await getCertificateRequests(filterToSend);
+      
+      if (allData) {
+        const mapped: PendingRequest[] = allData.map((item: any) => ({
+          id: item.control_number,
+          dbId: item.id, // Store the database UUID
+          residentName: item.full_name,
+          certificateType: item.certificate_type,
+          customCertificateName: item.custom_certificate_name || undefined,
+          dateSubmitted: item.created_at 
+            ? new Date(item.created_at).toLocaleDateString() 
+            : new Date().toLocaleDateString(),
+          status: (item.status?.toLowerCase() || 'pending') as PendingRequest['status'],
+          residentId: item.resident_id || undefined,
+          processedBy: item.processed_by || undefined,
+          processedDate: item.updated_at 
+            ? new Date(item.updated_at).toLocaleString() 
+            : undefined,
+          notes: item.notes || undefined,
+          rejectionReason: item.rejection_reason || undefined,
+          contactNumber: item.contact_number || undefined,
+          email: item.email || undefined,
+          householdNumber: item.household_number || undefined,
+          purpose: item.purpose || undefined,
+          priority: item.priority || 'Normal',
+          readyDate: item.preferred_pickup_date 
+            ? new Date(item.preferred_pickup_date).toLocaleDateString()
+            : undefined,
+          residentNotes: item.household_number ? `Household: ${item.household_number}` : undefined,
+          birthDate: item.birth_date || undefined,
+        }));
+        setRequests(mapped);
+
+        // Filter for recent processed (approved/rejected in last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentProcessed = allData.filter((item: any) => {
+          const status = item.status?.toLowerCase();
+          if (status !== 'approved' && status !== 'rejected') return false;
+          const updatedAt = new Date(item.updated_at);
+          return updatedAt >= thirtyDaysAgo;
+        });
+
+        const mappedRecent: PendingRequest[] = recentProcessed.map((item: any) => ({
+          id: item.control_number,
+          residentName: item.full_name,
+          certificateType: item.certificate_type,
+          customCertificateName: item.custom_certificate_name || undefined,
+          dateSubmitted: item.created_at 
+            ? new Date(item.created_at).toLocaleDateString() 
+            : new Date().toLocaleDateString(),
+          status: (item.status?.toLowerCase() || 'pending') as PendingRequest['status'],
+          processedBy: item.processed_by || undefined,
+          processedDate: item.updated_at 
+            ? new Date(item.updated_at).toLocaleString() 
+            : undefined,
+          notes: item.notes || undefined,
+          rejectionReason: item.notes || undefined,
+        }));
+        setRecentRequests(mappedRecent);
+      }
+
+
+      // Load incidents for home page
+      const incidentData = await getAllIncidentsForStaff(null, null);
+      if (incidentData) {
+        const mappedIncidents = incidentData.map((i: any) => ({
+          id: i.id,
+          incidentNumber: i.incident_number,
+          complainantName: i.complainant_name,
+          incidentType: i.incident_type,
+          incidentDate: new Date(i.incident_date).toLocaleDateString(),
+          approvalStatus: i.approval_status || "pending",
+          reviewedAt: i.reviewed_at,
+        }));
+        setAllIncidents(mappedIncidents);
+        setRecentIncidents(mappedIncidents.slice(0, 5));
+      }
+
+    } catch (error) {
+      console.error("Error loading requests:", error);
+      toast.error("Failed to load data");
+    } finally {
+      setIsDataLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadRequests();
+      
+      // Load pending ecological submissions count via staff API
+      const loadEcologicalCount = async () => {
+        try {
+          const count = await getPendingEcologicalCount();
+          setPendingEcologicalCount(count);
+        } catch (err) {
+          console.error("Error loading ecological count:", err);
+        }
+      };
+      loadEcologicalCount();
+
+      // Load pending name change requests count
+      const loadNameChangeCount = async () => {
+        try {
+          const count = await getPendingNameChangeRequestsCount();
+          setPendingNameChangeCount(count);
+        } catch (err) {
+          console.error("Error loading name change count:", err);
+        }
+      };
+      loadNameChangeCount();
+
+
+
+
+      // Load pending incidents count via staff API (bypasses RLS)
+      const loadIncidentsCount = async () => {
+        try {
+          const count = await getPendingIncidentsCount();
+          setPendingIncidentsCount(count);
+        } catch (err) {
+          console.error("Error loading incidents count:", err);
+        }
+      };
+      loadIncidentsCount();
+
+      // Load pending certificate requests count via staff API
+      const loadCertificatesCount = async () => {
+        try {
+          const count = await getPendingCertificatesCount();
+          setPendingCertificatesCount(count);
+        } catch (err) {
+          console.error("Error loading certificates count:", err);
+        }
+      };
+      loadCertificatesCount();
+
+      // Load unread messages count
+      const loadUnreadMessagesCount = async () => {
+        if (!user?.id) return;
+        try {
+          const count = await getStaffUnreadMessageCount(user.id);
+          if (count !== null) {
+            setUnreadMessagesCount((prev) => {
+              // Only play sound if not initial load and count increased
+              if (prevUnreadCountRef.current >= 0 && count > prevUnreadCountRef.current) {
+                playNotificationSound();
+              }
+              prevUnreadCountRef.current = count;
+              return count;
+            });
+          }
+        } catch (err) {
+          console.error("Error loading unread messages count:", err);
+        }
+      };
+      loadUnreadMessagesCount();
+      
+      // Real-time subscription for certificate requests
+      const requestsChannel = supabase
+        .channel('certificate-requests-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'certificate_requests'
+        }, () => {
+          console.log('Certificate request changed, reloading...');
+          loadRequests();
+          loadCertificatesCount();
+        })
+        .subscribe();
+
+      // Real-time subscription for ecological submissions
+      const ecologicalChannel = supabase
+        .channel('ecological-submissions-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'ecological_profile_submissions'
+        }, () => {
+          console.log('Ecological submission changed, reloading count...');
+          loadEcologicalCount();
+        })
+        .subscribe();
+
+      // Real-time subscription for name change requests
+      const nameChangeChannel = supabase
+        .channel('name-change-requests-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'name_change_requests'
+        }, () => {
+          console.log('Name change request changed, reloading count...');
+          loadNameChangeCount();
+        })
+        .subscribe();
+
+      // Real-time subscription for incidents
+      const incidentsChannel = supabase
+        .channel('incidents-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'incidents'
+        }, () => {
+          console.log('Incident changed, reloading count...');
+          loadIncidentsCount();
+        })
+        .subscribe();
+
+
+
+
+      // Real-time subscription for messages (sound notification + badge)
+      const messagesChannel = supabase
+        .channel('staff-messages-notification')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        }, () => {
+          loadUnreadMessagesCount();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(requestsChannel);
+        supabase.removeChannel(ecologicalChannel);
+        supabase.removeChannel(nameChangeChannel);
+        supabase.removeChannel(incidentsChannel);
+        
+        supabase.removeChannel(messagesChannel);
+      };
+    }
+  }, [isAuthenticated, loadRequests]);
+
+  // Load pending resident registrations
+  const loadPendingResidents = useCallback(async () => {
+    setIsLoadingResidents(true);
+    try {
+      const data = await getPendingRegistrations();
+      setPendingResidents(data || []);
+    } catch (error) {
+      console.error('Error loading pending registrations:', error);
+      toast.error("Failed to load pending registrations");
+    } finally {
+      setIsLoadingResidents(false);
+    }
+  }, []);
+
+  // Load pending residents when tab is active
+  useEffect(() => {
+    if (isAuthenticated && activeTab === "resident-approval") {
+      loadPendingResidents();
+    }
+  }, [isAuthenticated, activeTab, loadPendingResidents]);
+
+  // Handle resident approval
+  const handleApproveResident = async (resident: PendingResident) => {
+    setProcessingResidentId(resident.id);
+    try {
+      await approveResident(resident.id, user?.fullName || 'Admin');
+
+      // Send approval notification email
+      if (resident.email) {
+        try {
+          await supabase.functions.invoke('send-approval-notification', {
+            body: {
+              recipientEmail: resident.email,
+              residentName: `${resident.first_name} ${resident.last_name}`,
+              status: 'approved',
+              approvedBy: user?.fullName || 'Admin',
+            },
+          });
+        } catch (emailError) {
+          console.error('Failed to send approval notification:', emailError);
+        }
+      }
+
+      toast.success(`${resident.first_name} ${resident.last_name}'s registration has been approved`);
+      loadPendingResidents();
+      
+      // Refresh stats from context (handles real-time updates)
+      refreshStats();
+    } catch (error) {
+      console.error('Error approving resident:', error);
+      toast.error("Failed to approve registration");
+    } finally {
+      setProcessingResidentId(null);
+    }
+  };
+
+  // Open resident reject dialog
+  const openResidentRejectDialog = (resident: PendingResident) => {
+    setSelectedResidentForReject(resident);
+    setResidentRejectionReason("");
+    setResidentRejectDialogOpen(true);
+  };
+
+  // Handle resident rejection
+  const handleRejectResident = async () => {
+    if (!selectedResidentForReject) return;
+    
+    setProcessingResidentId(selectedResidentForReject.id);
+    try {
+      await rejectResident(
+        selectedResidentForReject.id,
+        user?.fullName || 'Admin',
+        residentRejectionReason || 'Registration rejected'
+      );
+
+      // Send rejection notification email
+      if (selectedResidentForReject.email) {
+        try {
+          await supabase.functions.invoke('send-approval-notification', {
+            body: {
+              recipientEmail: selectedResidentForReject.email,
+              residentName: `${selectedResidentForReject.first_name} ${selectedResidentForReject.last_name}`,
+              status: 'rejected',
+              rejectionReason: residentRejectionReason || 'Registration rejected',
+            },
+          });
+        } catch (emailError) {
+          console.error('Failed to send rejection notification:', emailError);
+        }
+      }
+
+      toast.success(`${selectedResidentForReject.first_name} ${selectedResidentForReject.last_name}'s registration has been rejected`);
+      setResidentRejectDialogOpen(false);
+      loadPendingResidents();
+      
+      // Refresh stats from context (handles real-time updates)
+      refreshStats();
+    } catch (error) {
+      console.error('Error rejecting resident:', error);
+      toast.error("Failed to reject registration");
+    } finally {
+      setProcessingResidentId(null);
+    }
+  };
+
+  // Filter pending residents
+  const filteredPendingResidents = pendingResidents.filter(resident => {
+    const fullName = `${resident.first_name} ${resident.middle_name || ''} ${resident.last_name}`.toLowerCase();
+    return fullName.includes(residentSearchTerm.toLowerCase()) || 
+           resident.email?.toLowerCase().includes(residentSearchTerm.toLowerCase());
+  });
+
+  const handleViewDetails = (request: PendingRequest) => {
+    setDetailsRequest(request);
+    setVerificationResult(null); // Reset verification when opening new request
+    setShowDetailsDialog(true);
+  };
+
+  // Verify if requester is a registered resident
+  const handleVerifyResident = async (request: PendingRequest) => {
+    if (!request.householdNumber || !request.birthDate) {
+      setVerificationResult({
+        verified: false,
+        message: "Missing household number or birth date. Cannot verify without complete information."
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerificationResult(null);
+
+    try {
+      // Use the existing RPC function to verify resident
+      const { data, error } = await supabase
+        .rpc('verify_resident_and_get_id', {
+          p_full_name: request.residentName,
+          p_birth_date: request.birthDate,
+          p_household_number: request.householdNumber
+        });
+
+      if (error) {
+        console.error("Verification error:", error);
+        setVerificationResult({
+          verified: false,
+          message: "Error during verification. Please try again."
+        });
+        return;
+      }
+
+      if (data) {
+        // Resident found - update the certificate request to link to resident
+        const { error: updateError } = await supabase
+          .from('certificate_requests')
+          .update({ resident_id: data })
+          .eq('control_number', request.id);
+
+        if (updateError) {
+          console.error("Error linking resident:", updateError);
+        }
+
+        setVerificationResult({
+          verified: true,
+          residentId: data,
+          message: "✓ Verified! Resident found in the barangay database."
+        });
+        
+        // Reload requests to update the UI
+        loadRequests();
+      } else {
+        setVerificationResult({
+          verified: false,
+          message: "Not found. No matching resident in the barangay database. Consider rejecting this request."
+        });
+      }
+    } catch (error) {
+      console.error("Verification error:", error);
+      setVerificationResult({
+        verified: false,
+        message: "Verification failed. Please try again."
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  // Open Rejection Dialog
+  const handleOpenRejectDialog = (request: PendingRequest) => {
+    setRequestToReject(request);
+    setRejectionReason("");
+    setShowRejectDialog(true);
+  };
+
+  // Confirm Rejection with reason
+  const handleConfirmReject = async () => {
+    if (!requestToReject || !rejectionReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+
+    setIsProcessing(true);
+    const staffName = user?.fullName || "Staff Admin";
+
+    try {
+      // Use the dbId from the request object (already fetched via RPC)
+      const dbId = requestToReject.dbId;
+      
+      if (!dbId) {
+        throw new Error("Request ID not found");
+      }
+
+      // Update in Supabase with rejection reason
+      await updateCertificateRequestStatus(
+        dbId, 
+        'Rejected', 
+        staffName,
+        rejectionReason.trim()
+      );
+
+      toast.success(`Request rejected successfully`, {
+        description: `Certificate for ${requestToReject.residentName} has been rejected.`
+      });
+
+      // Close dialog and reload
+      setShowRejectDialog(false);
+      setRequestToReject(null);
+      setRejectionReason("");
+      loadRequests();
+    } catch (error: any) {
+      console.error("Error rejecting request:", error);
+      if (error.message?.includes('RLS') || error.message?.includes('policy')) {
+        toast.error("Permission denied. Please contact administrator.");
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        toast.error("Network error. Please check your connection.");
+      } else {
+        toast.error(`Failed to reject request: ${error.message || 'Unknown error'}`);
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAction = async (action: string, request: PendingRequest) => {
+    const timestamp = new Date().toLocaleString();
+    const staffName = user?.fullName || "Staff Admin";
+
+    // Handle View action
+    if (action === "View") {
+      handleViewDetails(request);
+      return;
+    }
+
+    // Handle Reject action - open dialog instead of direct rejection
+    if (action === "Reject") {
+      handleOpenRejectDialog(request);
+      return;
+    }
+    
+    if (action === "Approve" || action === "Verifying") {
+      setIsProcessing(true);
+      try {
+        // Use the dbId from the request object (already fetched via RPC)
+        const dbId = request.dbId;
+        
+        if (!dbId) {
+          throw new Error("Request ID not found");
+        }
+
+        // Map action to status
+        const statusMap: Record<string, string> = {
+          'Approve': 'Approved',
+          'Verifying': 'Verifying',
+        };
+
+        const newStatus = statusMap[action];
+        const actionNote = action === 'Approve' 
+          ? 'Approved - All requirements verified'
+          : 'Under verification';
+
+        await updateCertificateRequestStatus(
+          dbId, 
+          newStatus, 
+          staffName,
+          actionNote
+        );
+
+        // Update local state
+        const updatedRequests = requests.map(r => 
+          r.id === request.id 
+            ? { 
+                ...r, 
+                status: newStatus.toLowerCase() as PendingRequest['status'], 
+                processedBy: staffName,
+                processedDate: timestamp,
+                notes: actionNote
+              } 
+            : r
+        );
+        setRequests(updatedRequests);
+
+        const actionMessage = action === 'Approve' 
+          ? 'approved' 
+          : 'marked as verifying';
+        
+        toast.success(`Request ${actionMessage} successfully`, {
+          description: `Certificate for ${request.residentName} has been ${actionMessage}.`
+        });
+
+        // Reload to get fresh data
+        loadRequests();
+      } catch (error: any) {
+        console.error(`Error ${action}ing request:`, error);
+        if (error.message?.includes('RLS') || error.message?.includes('policy')) {
+          toast.error("Permission denied. Please contact administrator.");
+        } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+          toast.error("Network error. Please check your connection.");
+        } else {
+          toast.error(`Failed to ${action.toLowerCase()} request: ${error.message || 'Unknown error'}`);
+        }
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+  };
+
+  // Open Update Status Dialog
+  const handleOpenUpdateStatusDialog = (request: PendingRequest) => {
+    setUpdateStatusRequest(request);
+    setUpdateStatusValue(request.status.charAt(0).toUpperCase() + request.status.slice(1));
+    setUpdateStatusRemarks("");
+    setShowUpdateStatusDialog(true);
+  };
+
+  // Confirm Update Status
+  const handleConfirmUpdateStatus = async () => {
+    if (!updateStatusRequest || !updateStatusValue) {
+      toast.error("Please select a status");
+      return;
+    }
+
+    setIsProcessing(true);
+    const staffName = user?.fullName || "Staff Admin";
+
+    try {
+      const dbId = updateStatusRequest.dbId;
+      if (!dbId) throw new Error("Request ID not found");
+
+      await updateCertificateRequestStatus(
+        dbId,
+        updateStatusValue,
+        staffName,
+        updateStatusRemarks.trim() || undefined
+      );
+
+      toast.success(`Status updated to "${updateStatusValue}"`, {
+        description: `Certificate for ${updateStatusRequest.residentName} has been updated.`
+      });
+
+      setShowUpdateStatusDialog(false);
+      setUpdateStatusRequest(null);
+      setUpdateStatusValue("");
+      setUpdateStatusRemarks("");
+      loadRequests();
+    } catch (error: any) {
+      console.error("Error updating status:", error);
+      toast.error(`Failed to update status: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Download certificate for approved request
+  const handleDownloadCertificate = async (request: PendingRequest) => {
+    try {
+      // Use the already fetched request data from the RPC
+      const allRequests = await getCertificateRequests();
+      const requestData = allRequests.find((r: any) => r.control_number === request.id);
+
+      if (!requestData) {
+        toast.error("Failed to fetch certificate data");
+        return;
+      }
+
+      // Calculate age from birth_date
+      let age: number | undefined;
+      if (requestData.birth_date) {
+        const today = new Date();
+        const birth = new Date(requestData.birth_date);
+        age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+          age--;
+        }
+      }
+
+      // Build address from request data (using placeholder since RPC doesn't include resident joins)
+      // In production, you may want to create a separate RPC to fetch full resident data
+      let address = "";
+      let civilStatus: string | undefined;
+      let yearsOfResidency: number | undefined;
+      
+      // Use available data from the request
+      if (requestData.household_number) {
+        address = `Household ${requestData.household_number}`;
+      }
+
+      const success = await downloadCertificatePdf(requestData.certificate_type, {
+        fullName: requestData.full_name,
+        address,
+        civilStatus,
+        age,
+        birthDate: requestData.birth_date ? new Date(requestData.birth_date).toLocaleDateString() : undefined,
+        purpose: requestData.purpose || undefined,
+        controlNumber: requestData.control_number,
+        yearsOfResidency,
+      });
+
+      if (success) {
+        // Log the certificate generation
+        await logCertificateGeneration(
+          requestData.control_number,
+          requestData.certificate_type,
+          user?.fullName || "Staff Admin"
+        );
+        toast.success("Certificate generated successfully");
+      } else {
+        toast.error("Failed to generate certificate. Template may not be configured.");
+      }
+    } catch (error) {
+      console.error("Error downloading certificate:", error);
+      toast.error("Failed to download certificate");
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      pending: "secondary",
+      processing: "default",
+      verifying: "default",
+      approved: "outline",
+      rejected: "destructive",
+      released: "default",
+    };
+    
+    const labels: Record<string, string> = {
+      pending: "Pending",
+      processing: "Processing",
+      verifying: "Under Verification",
+      approved: "Approved",
+      rejected: "Rejected",
+      released: "Released",
+    };
+
+    const colors: Record<string, string> = {
+      pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      processing: "bg-blue-100 text-blue-800 border-blue-200",
+      verifying: "bg-purple-100 text-purple-800 border-purple-200",
+      approved: "bg-green-100 text-green-800 border-green-200",
+      rejected: "bg-red-100 text-red-800 border-red-200",
+      released: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    };
+    
+    return (
+      <Badge 
+        variant={variants[status] || "default"} 
+        className={colors[status] || ""}
+      >
+        {labels[status] || status}
+      </Badge>
+    );
+  };
+
+  // Bulk selection handlers
+  const approvedRequests = requests.filter(r => r.status === "approved");
+  const pendingOrVerifyingRequests = requests.filter(r => r.status === "pending" || r.status === "verifying" || r.status === "processing");
+  
+  // Bulk rejection dialog state
+  const [showBulkRejectDialog, setShowBulkRejectDialog] = useState(false);
+  const [bulkRejectionReason, setBulkRejectionReason] = useState("");
+  
+  // Calculate selected counts by status
+  const selectedPendingCount = useMemo(() => {
+    return requests.filter(
+      r => selectedRequests.has(r.id) && 
+      (r.status === "pending" || r.status === "verifying" || r.status === "processing")
+    ).length;
+  }, [requests, selectedRequests]);
+
+  const selectedApprovedCount = useMemo(() => {
+    return requests.filter(
+      r => selectedRequests.has(r.id) && r.status === "approved"
+    ).length;
+  }, [requests, selectedRequests]);
+  
+  const toggleRequestSelection = (requestId: string) => {
+    setSelectedRequests(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(requestId)) {
+        newSet.delete(requestId);
+      } else {
+        newSet.add(requestId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAllApproved = () => {
+    if (selectedRequests.size === approvedRequests.length && approvedRequests.length > 0) {
+      setSelectedRequests(new Set());
+    } else {
+      setSelectedRequests(new Set(approvedRequests.map(r => r.id)));
+    }
+  };
+
+  const toggleSelectAllPending = () => {
+    const allPendingSelected = pendingOrVerifyingRequests.every(r => selectedRequests.has(r.id));
+    if (allPendingSelected && pendingOrVerifyingRequests.length > 0) {
+      // Deselect all pending
+      setSelectedRequests(prev => {
+        const newSet = new Set(prev);
+        pendingOrVerifyingRequests.forEach(r => newSet.delete(r.id));
+        return newSet;
+      });
+    } else {
+      // Select all pending
+      setSelectedRequests(prev => {
+        const newSet = new Set(prev);
+        pendingOrVerifyingRequests.forEach(r => newSet.add(r.id));
+        return newSet;
+      });
+    }
+  };
+
+  const allPendingSelected = pendingOrVerifyingRequests.length > 0 && pendingOrVerifyingRequests.every(r => selectedRequests.has(r.id));
+
+  const clearSelection = () => {
+    setSelectedRequests(new Set());
+  };
+
+  // Bulk approve handler
+  const handleBulkApprove = async () => {
+    if (selectedPendingCount === 0) return;
+    
+    setIsBatchUpdating(true);
+    const staffName = user?.fullName || "Staff Admin";
+    let successCount = 0;
+    let errorCount = 0;
+    
+    const pendingSelected = requests.filter(
+      r => selectedRequests.has(r.id) && 
+      (r.status === "pending" || r.status === "verifying" || r.status === "processing")
+    );
+    
+    try {
+      for (const request of pendingSelected) {
+        try {
+          if (!request.dbId) {
+            errorCount++;
+            continue;
+          }
+          
+          await updateCertificateRequestStatus(
+            request.dbId,
+            'Approved',
+            staffName,
+            'Bulk approved - All requirements verified'
+          );
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error(`Failed to approve ${request.id}:`, error);
+        }
+      }
+      
+      // Log bulk action
+      await logBatchStatusUpdate(
+        pendingSelected.map(r => r.id),
+        'Approved',
+        staffName
+      );
+      
+      toast.success(`Bulk approval complete`, {
+        description: `${successCount} approved${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+      });
+      
+      setSelectedRequests(new Set());
+      loadRequests();
+    } catch (error) {
+      console.error("Bulk approve error:", error);
+      toast.error("Failed to complete bulk approval");
+    } finally {
+      setIsBatchUpdating(false);
+    }
+  };
+
+  // Bulk reject handler
+  const handleBulkReject = async () => {
+    if (!bulkRejectionReason.trim()) {
+      toast.error("Please provide a rejection reason");
+      return;
+    }
+    
+    setIsBatchUpdating(true);
+    const staffName = user?.fullName || "Staff Admin";
+    let successCount = 0;
+    let errorCount = 0;
+    
+    const pendingSelected = requests.filter(
+      r => selectedRequests.has(r.id) && 
+      (r.status === "pending" || r.status === "verifying" || r.status === "processing")
+    );
+    
+    try {
+      for (const request of pendingSelected) {
+        try {
+          if (!request.dbId) {
+            errorCount++;
+            continue;
+          }
+          
+          await updateCertificateRequestStatus(
+            request.dbId,
+            'Rejected',
+            staffName,
+            bulkRejectionReason.trim()
+          );
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error(`Failed to reject ${request.id}:`, error);
+        }
+      }
+      
+      // Log bulk action
+      await logBatchStatusUpdate(
+        pendingSelected.map(r => r.id),
+        'Rejected',
+        staffName
+      );
+      
+      toast.success(`Bulk rejection complete`, {
+        description: `${successCount} rejected${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+      });
+      
+      setShowBulkRejectDialog(false);
+      setBulkRejectionReason("");
+      setSelectedRequests(new Set());
+      loadRequests();
+    } catch (error) {
+      console.error("Bulk reject error:", error);
+      toast.error("Failed to complete bulk rejection");
+    } finally {
+      setIsBatchUpdating(false);
+    }
+  };
+
+  // Bulk download handler
+  const handleBulkDownload = async () => {
+    if (selectedRequests.size === 0) {
+      toast.error("No requests selected");
+      return;
+    }
+
+    setIsDownloading(true);
+    setDownloadProgress({ current: 0, total: selectedRequests.size });
+
+    try {
+      const selectedControlNumbers = Array.from(selectedRequests);
+      const certificateTypes: Record<string, string> = {};
+      
+      // Map control numbers to certificate types
+      selectedControlNumbers.forEach(controlNumber => {
+        const request = requests.find(r => r.id === controlNumber);
+        if (request) {
+          certificateTypes[controlNumber] = request.certificateType;
+        }
+      });
+
+      const success = await bulkDownloadCertificates(
+        selectedControlNumbers,
+        certificateTypes,
+        (current, total) => setDownloadProgress({ current, total })
+      );
+
+      if (success) {
+        // Log the bulk download
+        await logBulkCertificateDownload(
+          selectedControlNumbers,
+          user?.fullName || "Staff Admin"
+        );
+        toast.success(`Successfully downloaded ${selectedRequests.size} certificates as ZIP`);
+      } else {
+        toast.error("Failed to download certificates");
+      }
+    } catch (error) {
+      console.error("Error in bulk download:", error);
+      toast.error("Failed to download certificates");
+    } finally {
+      setIsDownloading(false);
+      setDownloadProgress({ current: 0, total: 0 });
+    }
+  };
+
+  // Batch status update handler (Mark as Released)
+  const handleMarkAsReleased = async () => {
+    if (selectedRequests.size === 0) {
+      toast.error("No requests selected");
+      return;
+    }
+
+    setIsBatchUpdating(true);
+    const staffName = user?.fullName || "Staff Admin";
+    const selectedControlNumbers = Array.from(selectedRequests);
+    let successCount = 0;
+
+    try {
+      for (const controlNumber of selectedControlNumbers) {
+        // Get database record by control number via edge function (bypasses RLS)
+        const dbRequest = await getCertificateIdByControlNumber(controlNumber);
+
+        if (!dbRequest) {
+          console.warn(`Could not find request ${controlNumber}`);
+          continue;
+        }
+
+        // Update status to Released
+        await updateCertificateRequestStatus(
+          dbRequest.id,
+          'Released',
+          staffName,
+          'Certificate released to resident'
+        );
+        successCount++;
+      }
+
+      if (successCount > 0) {
+        // Log the batch status update
+        await logBatchStatusUpdate(
+          selectedControlNumbers,
+          'Released',
+          staffName
+        );
+
+        toast.success(`${successCount} certificate(s) marked as Released`);
+        clearSelection();
+        loadRequests();
+      } else {
+        toast.error("Failed to update any requests");
+      }
+    } catch (error) {
+      console.error("Error in batch status update:", error);
+      toast.error("Failed to update request statuses");
+    } finally {
+      setIsBatchUpdating(false);
+    }
+  };
+
+  // Announcement Management
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [deleteAnnouncementDialogOpen, setDeleteAnnouncementDialogOpen] = useState(false);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<Announcement | null>(null);
+  const [isDeletingAnnouncement, setIsDeletingAnnouncement] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: "",
+    titleTl: "",
+    description: "",
+    descriptionTl: "",
+    type: "general" as "important" | "general",
+    imageFile: null as File | null,
+    imageUrl: "" as string,
+  });
+
+  const handleDeleteAnnouncement = async () => {
+    if (!announcementToDelete) return;
+    
+    setIsDeletingAnnouncement(true);
+    try {
+      await deleteAnnouncementStaff(announcementToDelete.id);
+      toast.success("Announcement deleted successfully");
+      loadAnnouncements();
+      setDeleteAnnouncementDialogOpen(false);
+      setAnnouncementToDelete(null);
+    } catch (error) {
+      console.error("Error deleting announcement:", error);
+      toast.error("Failed to delete announcement");
+    } finally {
+      setIsDeletingAnnouncement(false);
+    }
+  };
+
+  // Load announcements from Supabase via edge function
+  const loadAnnouncements = useCallback(async () => {
+    try {
+      // Use staff API which authenticates via edge function
+      const data = await getAnnouncementsForStaff();
+
+      if (data && data.length > 0) {
+        const mapped: Announcement[] = data.map((item: any) => ({
+          id: item.id,
+          type: (item.type === 'important' ? 'important' : 'general') as "important" | "general",
+          title: item.title,
+          titleTl: item.title_tl || item.title,
+          description: item.content,
+          descriptionTl: item.content_tl || item.content,
+          date: new Date(item.created_at || Date.now()).toLocaleDateString("en-US", { 
+            year: "numeric", 
+            month: "long", 
+            day: "numeric" 
+          }),
+          imageUrl: item.image_url || undefined,
+        }));
+        setAnnouncements(mapped);
+      } else {
+        setAnnouncements([]);
+      }
+    } catch (error) {
+      console.error("Error loading announcements:", error);
+      setAnnouncements([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadAnnouncements();
+      
+      // Real-time subscription for announcements
+      const announcementsChannel = supabase
+        .channel('announcements-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'announcements'
+        }, () => {
+          console.log('Announcements changed, reloading...');
+          loadAnnouncements();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(announcementsChannel);
+      };
+    }
+  }, [isAuthenticated, loadAnnouncements]);
+
+  const handleAutoTranslate = async () => {
+    if (!announcementForm.title && !announcementForm.description) {
+      toast.error("Please enter the English title or description first");
+      return;
+    }
+    setIsTranslating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('translate-to-tagalog', {
+        body: { title: announcementForm.title, content: announcementForm.description },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAnnouncementForm(prev => ({
+        ...prev,
+        titleTl: data.title_tl || prev.titleTl,
+        descriptionTl: data.content_tl || prev.descriptionTl,
+      }));
+      toast.success("Translation completed! You can review and edit before saving.");
+    } catch (err: any) {
+      console.error("Translation error:", err);
+      toast.error(err.message || "Failed to translate. Please try again.");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleCreateAnnouncement = async () => {
+    if (!announcementForm.title || !announcementForm.description) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      // Upload image if a new file was selected
+      let finalImageUrl = announcementForm.imageUrl;
+      if (announcementForm.imageFile) {
+        const file = announcementForm.imageFile;
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('announcement-images')
+          .upload(filePath, file);
+        
+        if (uploadError) throw uploadError;
+        
+        const { data: urlData } = supabase.storage
+          .from('announcement-images')
+          .getPublicUrl(filePath);
+        
+        finalImageUrl = urlData.publicUrl;
+      }
+
+      if (editingAnnouncement) {
+        await updateAnnouncementStaff(editingAnnouncement.id, {
+          title: announcementForm.title,
+          content: announcementForm.description,
+          titleTl: announcementForm.titleTl,
+          contentTl: announcementForm.descriptionTl,
+          type: announcementForm.type,
+          imageUrl: finalImageUrl || undefined,
+        });
+        toast.success("Announcement updated successfully");
+      } else {
+        await createAnnouncementStaff({
+          title: announcementForm.title,
+          content: announcementForm.description,
+          titleTl: announcementForm.titleTl,
+          contentTl: announcementForm.descriptionTl,
+          type: announcementForm.type,
+          imageUrl: finalImageUrl || undefined,
+        });
+        toast.success("Announcement created successfully");
+      }
+
+      await loadAnnouncements();
+
+      const localAnnouncement: Announcement = {
+        id: editingAnnouncement?.id || `ann-${Date.now()}`,
+        type: announcementForm.type,
+        title: announcementForm.title,
+        titleTl: announcementForm.titleTl || announcementForm.title,
+        description: announcementForm.description,
+        descriptionTl: announcementForm.descriptionTl || announcementForm.description,
+        date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+        imageUrl: finalImageUrl || undefined,
+      };
+
+      const storedAnnouncements = JSON.parse(localStorage.getItem("barangay_announcements") || "[]");
+      let updatedLocal;
+      if (editingAnnouncement) {
+        updatedLocal = storedAnnouncements.map((a: Announcement) => 
+          a.id === editingAnnouncement.id ? localAnnouncement : a
+        );
+      } else {
+        updatedLocal = [localAnnouncement, ...storedAnnouncements];
+      }
+      localStorage.setItem("barangay_announcements", JSON.stringify(updatedLocal));
+      
+      window.dispatchEvent(new StorageEvent("storage", {
+        key: "barangay_announcements",
+        newValue: JSON.stringify(updatedLocal),
+      }));
+
+      setShowAnnouncementDialog(false);
+      setEditingAnnouncement(null);
+      setAnnouncementForm({ title: "", titleTl: "", description: "", descriptionTl: "", type: "general", imageFile: null, imageUrl: "" });
+    } catch (error) {
+      console.error("Error saving announcement:", error);
+      toast.error("Failed to save announcement");
+    }
+  };
+
+  const handleEditAnnouncement = (announcement: Announcement) => {
+    setEditingAnnouncement(announcement);
+    setAnnouncementForm({
+      title: announcement.title,
+      titleTl: announcement.titleTl,
+      description: announcement.description,
+      descriptionTl: announcement.descriptionTl,
+      type: announcement.type,
+      imageFile: null,
+      imageUrl: announcement.imageUrl || "",
+    });
+    setShowAnnouncementDialog(true);
+  };
+
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success("Logged out successfully");
+    // Import is at top of file
+    const { secureLogoutRedirect } = await import("@/utils/authNavigationGuard");
+    secureLogoutRedirect("/");
+  };
+
+  const pendingCount = requests.filter(r => r.status === "pending").length;
+
+  // Show loading state
+  if (authLoading || isDataLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <StaffSidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} userRole={user?.role} pendingRegistrationCount={pendingRegistrationCount} pendingEcologicalCount={pendingEcologicalCount} pendingNameChangeCount={pendingNameChangeCount} pendingIncidentsCount={pendingIncidentsCount} pendingCertificatesCount={pendingCertificatesCount} unreadMessagesCount={unreadMessagesCount} />
+        
+        <div className="flex-1 flex flex-col">
+          {/* Top Bar */}
+          <header className="h-16 border-b bg-card flex items-center justify-between px-4 md:px-6">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SidebarTrigger>
+              <h1 className="text-lg md:text-xl font-bold text-foreground">Staff Dashboard</h1>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              <div className="hidden md:flex flex-col items-end">
+                <span className="text-sm font-medium text-foreground">
+                  {user?.fullName || "Staff Admin"}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {currentTime.toLocaleDateString()} {currentTime.toLocaleTimeString()}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="flex-1 p-4 md:p-6 overflow-auto">
+            {activeTab === "home" && (
+              <>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                  {statsLoading ? (
+                    <>
+                      {[...Array(4)].map((_, i) => (
+                        <Card key={i}>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-4 w-4" />
+                          </CardHeader>
+                          <CardContent>
+                            <Skeleton className="h-8 w-16 mb-1" />
+                            <Skeleton className="h-3 w-32" />
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab("certificate-requests")}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Pending Certificates</CardTitle>
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{pendingCertificatesCount}</div>
+                          <p className="text-xs text-muted-foreground">Awaiting processing</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab("incidents")}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Pending Incidents</CardTitle>
+                          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{pendingIncidentsCount}</div>
+                          <p className="text-xs text-muted-foreground">Awaiting review</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab("ecological-census")}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Pending Ecological</CardTitle>
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{pendingEcologicalCount}</div>
+                          <p className="text-xs text-muted-foreground">Submissions to review</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Total Residents</CardTitle>
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{totalResidents}</div>
+                          <p className="text-xs text-muted-foreground">Registered residents</p>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
+                </div>
+
+                {/* Urgent Requests */}
+                {(() => {
+                  const urgentRequests = requests.filter(r => 
+                    r.priority?.toLowerCase() === 'urgent' && 
+                    (r.status === 'pending' || r.status === 'verifying' || r.status === 'processing')
+                  );
+                  if (urgentRequests.length === 0) return null;
+                  return (
+                    <Card className="mb-8 border-l-4 border-l-destructive">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                          <AlertCircle className="h-5 w-5 text-destructive" />
+                          Urgent Requests
+                        </CardTitle>
+                        <Badge variant="destructive">
+                          {urgentRequests.length} urgent
+                        </Badge>
+                      </CardHeader>
+                      <CardContent>
+                        {/* Mobile cards */}
+                        <div className="md:hidden space-y-3">
+                          {urgentRequests.slice(0, 10).map((req) => (
+                            <div
+                              key={req.id}
+                              className="p-3 rounded-lg border bg-card cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => setActiveTab("certificate-requests")}
+                            >
+                              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                                <span className="font-semibold text-sm">{req.residentName}</span>
+                                {getStatusBadge(req.status)}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{req.certificateType}</p>
+                              <p className="text-xs text-muted-foreground">Control No: {req.id}</p>
+                              <p className="text-xs text-muted-foreground">Date: {req.dateSubmitted}</p>
+                              <Badge variant="destructive" className="text-xs mt-2">
+                                <AlertCircle className="h-3 w-3 mr-1" />
+                                Urgent
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Desktop table */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <Table className="min-w-[600px]">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Control No.</TableHead>
+                                <TableHead>Resident</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Priority</TableHead>
+                                <TableHead>Status</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {urgentRequests.slice(0, 10).map((req) => (
+                                <TableRow key={req.id} className="cursor-pointer hover:bg-muted/50" onClick={() => {
+                                  setActiveTab("certificate-requests");
+                                }}>
+                                  <TableCell className="font-medium text-xs">{req.id}</TableCell>
+                                  <TableCell className="text-sm">{req.residentName}</TableCell>
+                                  <TableCell className="text-sm">{req.certificateType}</TableCell>
+                                  <TableCell className="text-sm">{req.dateSubmitted}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="destructive" className="text-xs">
+                                      <AlertCircle className="h-3 w-3 mr-1" />
+                                      Urgent
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{getStatusBadge(req.status)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+
+                {/* Pending Registrations Widget (Admin Only) */}
+                {user?.role === 'admin' && pendingRegistrationCount > 0 && (
+                  <Card className="mb-8 border-l-4 border-l-yellow-500 bg-yellow-50/50">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                        <User className="h-5 w-5 text-yellow-600" />
+                        Pending Resident Registrations
+                      </CardTitle>
+                      <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                        {pendingRegistrationCount} pending
+                      </Badge>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        There are {pendingRegistrationCount} resident registration{pendingRegistrationCount !== 1 ? 's' : ''} awaiting your approval.
+                      </p>
+                      <Button 
+                        size="sm" 
+                        onClick={() => navigate('/admin/resident-approval')}
+                        className="bg-yellow-600 hover:bg-yellow-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Review Registrations
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Quick Actions */}
+                <div className="mb-8">
+                  <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
+                  <div className="flex flex-wrap gap-3">
+                    <Button onClick={() => { setActiveTab("certificate-requests"); setShowCreateCertificate(true); }}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Certificate Request
+                    </Button>
+                    <Button variant="outline" onClick={() => setActiveTab("announcements")}>
+                      <Bell className="h-4 w-4 mr-2" />
+                      Manage Announcements
+                    </Button>
+                    <Button variant="outline" onClick={() => setActiveTab("certificate-requests")}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      View Certificate Requests
+                    </Button>
+                    {hasPermission(user?.role, "monitoring_reports") && (
+                      <Button variant="outline" onClick={() => setActiveTab("monitoring-reports")}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        New RBI Form C Report
+                      </Button>
+                    )}
+                    {hasPermission(user?.role, "ecological_submissions") && (
+                      <Button variant="outline" onClick={() => setActiveTab("ecological-census")}>
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        Review Ecological Submissions
+                      </Button>
+                    )}
+                    {hasPermission(user?.role, "manage_households") && (
+                      <Button variant="outline" onClick={() => setActiveTab("registry")}>
+                        <Home className="h-4 w-4 mr-2" />
+                        Manage Households / Census
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recent Activity Tables - Stacked Vertically */}
+                <div className="space-y-6">
+                  {/* Recent Certificate Requests */}
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle className="text-lg">Recent Certificate Requests</CardTitle>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setActiveTab("certificate-requests")}
+                        className="text-primary hover:text-primary/80"
+                      >
+                        View All →
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      {requests.length === 0 ? (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No certificate requests yet</p>
+                        </div>
+                      ) : (
+                        <>
+                        {/* Mobile cards */}
+                        <div className="md:hidden space-y-3">
+                          {requests.slice(0, 5).map((request) => (
+                            <div key={request.id} className="p-3 rounded-lg border bg-card">
+                              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                                <span className="font-semibold text-sm">{request.residentName}</span>
+                                {getStatusBadge(request.status)}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{request.certificateType}</p>
+                              <p className="text-xs text-muted-foreground">ID: {request.id}</p>
+                              <p className="text-xs text-muted-foreground">Date: {request.dateSubmitted}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Desktop table */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <Table className="min-w-[600px]">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Request ID</TableHead>
+                                <TableHead>Resident</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Status</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {requests.slice(0, 5).map((request) => (
+                                <TableRow key={request.id}>
+                                  <TableCell className="font-medium text-xs">{request.id}</TableCell>
+                                  <TableCell className="text-sm">{request.residentName}</TableCell>
+                                  <TableCell className="text-sm">{request.certificateType}</TableCell>
+                                  <TableCell className="text-sm">{request.dateSubmitted}</TableCell>
+                                  <TableCell>{getStatusBadge(request.status)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Recent Incident/Blotter Reports */}
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle className="text-lg">Recent Incident/Blotter Reports</CardTitle>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setActiveTab("incidents")}
+                        className="text-primary hover:text-primary/80"
+                      >
+                        View All →
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      {recentIncidents.length === 0 ? (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <AlertTriangle className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No incident reports yet</p>
+                        </div>
+                      ) : (
+                        <>
+                        {/* Mobile cards */}
+                        <div className="md:hidden space-y-3">
+                          {recentIncidents.map((incident) => {
+                            const badgeVariant = incident.approvalStatus === "approved" ? "outline" as const :
+                              incident.approvalStatus === "rejected" ? "destructive" as const : "secondary" as const;
+                            return (
+                              <div key={incident.id} className="p-3 rounded-lg border bg-card">
+                                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                                  <span className="font-semibold text-sm">{incident.complainantName}</span>
+                                  <Badge variant={badgeVariant} className="capitalize">
+                                    {incident.approvalStatus === "approved" && <CheckCircle className="h-3 w-3 mr-1" />}
+                                    {incident.approvalStatus === "rejected" && <XCircle className="h-3 w-3 mr-1" />}
+                                    {incident.approvalStatus === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                                    {incident.approvalStatus}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{incident.incidentType}</p>
+                                <p className="text-xs text-muted-foreground">ID: {incident.incidentNumber}</p>
+                                <p className="text-xs text-muted-foreground">Date: {incident.incidentDate}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Desktop table */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <Table className="min-w-[600px]">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Report ID</TableHead>
+                                <TableHead>Complainant</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Status</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {recentIncidents.map((incident) => (
+                                <TableRow key={incident.id}>
+                                  <TableCell className="font-medium text-xs">{incident.incidentNumber}</TableCell>
+                                  <TableCell className="text-sm">{incident.complainantName}</TableCell>
+                                  <TableCell className="text-sm">{incident.incidentType}</TableCell>
+                                  <TableCell className="text-sm">{incident.incidentDate}</TableCell>
+                                  <TableCell>
+                                    <Badge 
+                                      variant={
+                                        incident.approvalStatus === "approved" ? "outline" :
+                                        incident.approvalStatus === "rejected" ? "destructive" :
+                                        "secondary"
+                                      }
+                                      className="capitalize"
+                                    >
+                                      {incident.approvalStatus === "approved" && <CheckCircle className="h-3 w-3 mr-1" />}
+                                      {incident.approvalStatus === "rejected" && <XCircle className="h-3 w-3 mr-1" />}
+                                      {incident.approvalStatus === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                                      {incident.approvalStatus}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
+
+            {activeTab === "certificate-requests" && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold">Certificate Requests</h2>
+                  {hasPermission(user?.role, "create_certificate") && (
+                    <Button onClick={() => setShowCreateCertificate(prev => !prev)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Certificate
+                    </Button>
+                  )}
+                </div>
+
+                {showCreateCertificate && (
+                  <Card className="max-w-2xl">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Create Certificate for Resident
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Submit a new certificate request on behalf of a resident
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <CertificateRequestForm
+                        onSuccess={(controlNumber) => {
+                          toast.success(`Certificate request created: ${controlNumber}`);
+                          loadRequests();
+                          setShowCreateCertificate(false);
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Status Filter Dropdown */}
+                <div className="flex items-center gap-4">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Requests</SelectItem>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Under Review">Under Review</SelectItem>
+                      <SelectItem value="Incomplete Requirements">Incomplete Requirements</SelectItem>
+                      <SelectItem value="Verifying">Verifying</SelectItem>
+                      <SelectItem value="Approved">Approved</SelectItem>
+                      <SelectItem value="Ready for Pickup">Ready for Pickup</SelectItem>
+                      <SelectItem value="Released">Released</SelectItem>
+                      <SelectItem value="Rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Search and Sort Controls */}
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, control number, or certificate type..."
+                      value={certSearchQuery}
+                      onChange={(e) => setCertSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                    {certSearchQuery && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+                        onClick={() => setCertSearchQuery("")}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Select value={certSortField} onValueChange={(value: "date" | "status" | "priority" | "certificateType") => setCertSortField(value)}>
+                      <SelectTrigger className="w-[160px]">
+                        <ArrowUpDown className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date">Date Submitted</SelectItem>
+                        <SelectItem value="status">Status</SelectItem>
+                        <SelectItem value="priority">Priority</SelectItem>
+                        <SelectItem value="certificateType">Certificate Type</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCertSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+                      title={certSortOrder === "asc" ? "Ascending" : "Descending"}
+                    >
+                      <ArrowUpDown className={`h-4 w-4 transition-transform ${certSortOrder === "asc" ? "rotate-180" : ""}`} />
+                    </Button>
+                    
+                    <Badge variant="secondary" className="text-xs">
+                      {filteredAndSortedRequests.length} of {requests.length}
+                    </Badge>
+                  </div>
+                </div>
+
+                {isDataLoading ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="inline-block animate-spin h-8 w-8 text-primary" />
+                    <p className="mt-2 text-muted-foreground">Loading requests...</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Pending/Filtered Certificate Requests Section */}
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle>
+                          {statusFilter === "All" ? "All Certificate Requests" : `${statusFilter} Requests`}
+                          {certSearchQuery && <span className="text-muted-foreground font-normal ml-2">- filtered</span>}
+                        </CardTitle>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {pendingOrVerifyingRequests.length > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={toggleSelectAllPending}
+                              className="text-xs"
+                            >
+                              {allPendingSelected 
+                                ? <><CheckSquare className="h-4 w-4 mr-1" /> Deselect All Pending</>
+                                : <><Square className="h-4 w-4 mr-1" /> Select All Pending ({pendingOrVerifyingRequests.length})</>
+                              }
+                            </Button>
+                          )}
+                          {approvedRequests.length > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={toggleSelectAllApproved}
+                              className="text-xs"
+                            >
+                              {selectedRequests.size === approvedRequests.length && approvedRequests.length > 0 
+                                ? <><CheckSquare className="h-4 w-4 mr-1" /> Deselect All Approved</>
+                                : <><Square className="h-4 w-4 mr-1" /> Select All Approved ({approvedRequests.length})</>
+                              }
+                            </Button>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {paginatedRequests.length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                            {certSearchQuery ? (
+                              <>
+                                <p className="text-lg font-medium">No matching requests found</p>
+                                <p className="text-sm">Try a different search term or clear the search</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-lg font-medium">No {statusFilter !== "All" ? statusFilter.toLowerCase() : ""} requests found</p>
+                                <p className="text-sm">When residents submit certificate requests, they will appear here for processing</p>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+                              {paginatedRequests.map((request) => (
+                                <CertificateRequestCard
+                                  key={request.id}
+                                  request={request}
+                                  isSelected={selectedRequests.has(request.id)}
+                                  isProcessing={isProcessing}
+                                  onSelect={toggleRequestSelection}
+                                  onView={(req) => handleAction("View", req)}
+                                  onDownload={handleDownloadCertificate}
+                                  onApprove={(req) => handleAction("Approve", req)}
+                                  onReject={(req) => handleAction("Reject", req)}
+                                  onVerify={(req) => handleAction("Verifying", req)}
+                                  onUpdateStatus={handleOpenUpdateStatusDialog}
+                                />
+                              ))}
+                            </div>
+                            
+                            {/* Pagination */}
+                            {totalCertPages > 1 && (
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+                                <p className="text-sm text-muted-foreground">
+                                  Showing {((certCurrentPage - 1) * CERT_ITEMS_PER_PAGE) + 1} - {Math.min(certCurrentPage * CERT_ITEMS_PER_PAGE, filteredAndSortedRequests.length)} of {filteredAndSortedRequests.length} requests
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCertCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={certCurrentPage === 1}
+                                  >
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Previous
+                                  </Button>
+                                  
+                                  <div className="flex items-center gap-1">
+                                    {Array.from({ length: totalCertPages }, (_, i) => i + 1)
+                                      .filter(page => {
+                                        if (totalCertPages <= 7) return true;
+                                        if (page === 1 || page === totalCertPages) return true;
+                                        if (Math.abs(page - certCurrentPage) <= 1) return true;
+                                        return false;
+                                      })
+                                      .map((page, index, filteredPages) => (
+                                        <div key={page} className="flex items-center">
+                                          {index > 0 && filteredPages[index - 1] !== page - 1 && (
+                                            <span className="px-2 text-muted-foreground">...</span>
+                                          )}
+                                          <Button
+                                            variant={certCurrentPage === page ? "default" : "outline"}
+                                            size="sm"
+                                            className="w-9 h-9 p-0"
+                                            onClick={() => setCertCurrentPage(page)}
+                                          >
+                                            {page}
+                                          </Button>
+                                        </div>
+                                      ))
+                                    }
+                                  </div>
+                                  
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCertCurrentPage(prev => Math.min(totalCertPages, prev + 1))}
+                                    disabled={certCurrentPage === totalCertPages}
+                                  >
+                                    Next
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Recent Certificate Requests (History) */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Recent Certificate Requests (Last 30 Days)</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {recentRequests.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <p>No recent processed requests found</p>
+                          </div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Control Number</TableHead>
+                                <TableHead>Resident Name</TableHead>
+                                <TableHead>Certificate Type</TableHead>
+                                <TableHead>Date Submitted</TableHead>
+                                <TableHead>Current Status</TableHead>
+                                <TableHead>Processed Date</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {recentRequests.map((request) => (
+                                <TableRow key={request.id}>
+                                  <TableCell className="font-medium font-mono text-xs">{request.id}</TableCell>
+                                  <TableCell>{request.residentName}</TableCell>
+                                  <TableCell>{request.certificateType}</TableCell>
+                                  <TableCell>{request.dateSubmitted}</TableCell>
+                                  <TableCell>{getStatusBadge(request.status)}</TableCell>
+                                  <TableCell>
+                                    {request.processedDate || '-'}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+
+                {/* Floating Bulk Action Toolbar */}
+                {selectedRequests.size > 0 && (
+                  <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-card shadow-lg rounded-lg border p-4 flex flex-wrap items-center gap-4 z-50 max-w-[90vw]">
+                    <span className="text-sm font-medium">
+                      {selectedRequests.size} certificate(s) selected
+                      {selectedPendingCount > 0 && selectedApprovedCount > 0 && (
+                        <span className="text-muted-foreground ml-1">
+                          ({selectedPendingCount} pending, {selectedApprovedCount} approved)
+                        </span>
+                      )}
+                    </span>
+                    
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Show for pending/verifying selections */}
+                      {selectedPendingCount > 0 && (
+                        <>
+                          <Button
+                            onClick={handleBulkApprove}
+                            disabled={isDownloading || isBatchUpdating}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            {isBatchUpdating ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Approving...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Approve ({selectedPendingCount})
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => setShowBulkRejectDialog(true)}
+                            disabled={isDownloading || isBatchUpdating}
+                            size="sm"
+                            variant="destructive"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject ({selectedPendingCount})
+                          </Button>
+                        </>
+                      )}
+                      
+                      {/* Show for approved selections */}
+                      {selectedApprovedCount > 0 && (
+                        <>
+                          
+                          <Button
+                            onClick={handleMarkAsReleased}
+                            disabled={isDownloading || isBatchUpdating}
+                            variant="outline"
+                            size="sm"
+                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          >
+                            {isBatchUpdating ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <Package className="h-4 w-4 mr-2" />
+                                Mark as Released ({selectedApprovedCount})
+                              </>
+                            )}
+                          </Button>
+                        </>
+                      )}
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearSelection}
+                        disabled={isDownloading || isBatchUpdating}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bulk Rejection Dialog */}
+                <AlertDialog open={showBulkRejectDialog} onOpenChange={setShowBulkRejectDialog}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reject {selectedPendingCount} Certificate Request(s)</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will reject all selected pending requests. Please provide a reason that will be applied to all.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-4">
+                      <Label htmlFor="bulk-rejection-reason">Rejection Reason</Label>
+                      <Textarea
+                        id="bulk-rejection-reason"
+                        placeholder="Enter the reason for rejection..."
+                        value={bulkRejectionReason}
+                        onChange={(e) => setBulkRejectionReason(e.target.value)}
+                        className="mt-2"
+                      />
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isBatchUpdating}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleBulkReject}
+                        disabled={!bulkRejectionReason.trim() || isBatchUpdating}
+                        className="bg-destructive hover:bg-destructive/90"
+                      >
+                        {isBatchUpdating ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Rejecting...</>
+                        ) : (
+                          "Reject All"
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+
+            {activeTab === "resident-approval" && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold">Resident Registration Approval</h2>
+                <p className="text-muted-foreground">
+                  Review and approve or reject pending resident registrations
+                </p>
+
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or email..."
+                    value={residentSearchTerm}
+                    onChange={(e) => setResidentSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Pending Count */}
+                <div>
+                  <Badge variant="secondary" className="text-sm">
+                    {filteredPendingResidents.length} pending registration{filteredPendingResidents.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+
+                {isLoadingResidents ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                    <p className="mt-2 text-muted-foreground">Loading pending registrations...</p>
+                  </div>
+                ) : filteredPendingResidents.length === 0 ? (
+                  <Card>
+                    <CardContent className="text-center py-12 text-muted-foreground">
+                      <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">No pending registrations</p>
+                      <p className="text-sm">New resident registration requests will appear here</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredPendingResidents.map((resident) => (
+                      <Card key={resident.id} className="border-l-4 border-l-yellow-500">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-semibold text-lg">
+                                  {resident.first_name} {resident.middle_name} {resident.last_name}
+                                </span>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                                {resident.email && (
+                                  <div className="flex items-center gap-2">
+                                    <Mail className="h-3 w-3" />
+                                    <span>{resident.email}</span>
+                                  </div>
+                                )}
+                                {resident.birth_date && (
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>{format(new Date(resident.birth_date), 'MMMM d, yyyy')}</span>
+                                  </div>
+                                )}
+                                {resident.contact_number && (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-3 w-3" />
+                                    <span>{resident.contact_number}</span>
+                                  </div>
+                                )}
+                                {resident.place_of_origin && (
+                                  <div className="flex items-center gap-2">
+                                    <MapPin className="h-3 w-3" />
+                                    <span>{resident.place_of_origin}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-3 w-3" />
+                                  <span>Applied: {format(new Date(resident.created_at), 'MMM d, yyyy h:mm a')}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => openResidentRejectDialog(resident)}
+                                disabled={processingResidentId === resident.id}
+                              >
+                                {processingResidentId === resident.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Reject
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleApproveResident(resident)}
+                                disabled={processingResidentId === resident.id}
+                              >
+                                {processingResidentId === resident.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Approve
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "announcements" && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Manage Announcements</h2>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline"
+                      onClick={() => window.open('/', '_blank')}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View on Landing Page
+                    </Button>
+                    <Button onClick={() => {
+                      setEditingAnnouncement(null);
+                      setAnnouncementForm({ title: "", titleTl: "", description: "", descriptionTl: "", type: "general", imageFile: null, imageUrl: "" });
+                      setShowAnnouncementDialog(true);
+                    }}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Announcement
+                    </Button>
+                  </div>
+                </div>
+
+                <Card>
+                  <CardContent className="p-6">
+                    {announcements.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Bell className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium">No announcements yet</p>
+                        <p className="text-sm">Create your first announcement to inform residents</p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Created</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {announcements.map((announcement) => (
+                            <TableRow key={announcement.id}>
+                              <TableCell className="max-w-xs">
+                                <div className="flex items-center gap-3">
+                                  {announcement.imageUrl && (
+                                    <img src={announcement.imageUrl} alt="" className="h-10 w-10 rounded object-cover shrink-0" />
+                                  )}
+                                  <div className="min-w-0 overflow-hidden">
+                                    <p className="font-medium break-all overflow-hidden text-ellipsis">{announcement.title}</p>
+                                    <p className="text-sm text-muted-foreground line-clamp-2 break-all">{announcement.description}</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={announcement.type === "important" ? "destructive" : "default"}>
+                                  {announcement.type}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {announcement.date}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingAnnouncement(announcement);
+                                      setAnnouncementForm({
+                                        title: announcement.title,
+                                        titleTl: announcement.titleTl,
+                                        description: announcement.description,
+                                        descriptionTl: announcement.descriptionTl,
+                                        type: announcement.type,
+                                        imageFile: null,
+                                        imageUrl: announcement.imageUrl || "",
+                                      });
+                                      setShowAnnouncementDialog(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setAnnouncementToDelete(announcement);
+                                      setDeleteAnnouncementDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {activeTab === "manage-residents" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manage Residents</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Users className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">Resident Management</p>
+                    <p className="text-sm">Feature coming in Phase 2</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "view-reports" && <ViewReportsTab />}
+
+            {activeTab === "registry" && (
+              <Tabs defaultValue="residents">
+                <TabsList>
+                  <TabsTrigger value="residents">Residents</TabsTrigger>
+                  <TabsTrigger value="households">Households</TabsTrigger>
+                </TabsList>
+                <TabsContent value="residents"><ResidentsTab /></TabsContent>
+                <TabsContent value="households"><HouseholdsTab /></TabsContent>
+              </Tabs>
+            )}
+
+            {activeTab === "incidents" && <IncidentsTab />}
+
+            {activeTab === "settings" && <SettingsTab />}
+
+            {activeTab === "name-change-requests" && <NameChangeRequestsTab />}
+
+            {activeTab === "ecological-census" && (
+              <Tabs defaultValue="census-form">
+                <TabsList>
+                  <TabsTrigger value="census-form">Census Form</TabsTrigger>
+                  <TabsTrigger value="submissions-queue">
+                    Submissions Queue
+                    {pendingEcologicalCount > 0 && (
+                      <Badge variant="destructive" className="ml-2 h-5 min-w-[20px] px-1.5 text-xs">
+                        {pendingEcologicalCount}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="census-form"><EcologicalProfileTab /></TabsContent>
+                <TabsContent value="submissions-queue"><EcologicalSubmissionsTab /></TabsContent>
+              </Tabs>
+            )}
+
+            
+
+            {activeTab === "monitoring-reports" && <MonitoringReportsTab />}
+
+            {activeTab === "messages" && <StaffMessagesTab />}
+          </main>
+        </div>
+      </div>
+
+      {/* View Details Dialog */}
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Request Details
+            </DialogTitle>
+            <DialogDescription>
+              Complete information for certificate request {detailsRequest?.id}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {detailsRequest && (
+            <div className="space-y-6">
+              {/* Status Badge */}
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <span className="text-sm font-medium">Current Status</span>
+                {getStatusBadge(detailsRequest.status)}
+              </div>
+
+              {/* Request Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Control Number</Label>
+                  <p className="font-mono text-sm font-medium">{detailsRequest.id}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Certificate Type</Label>
+                  <p className="font-medium">{detailsRequest.certificateType}</p>
+                </div>
+              </div>
+
+              {/* Resident Verification Section */}
+              <div className="space-y-4">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Resident Verification
+                </h4>
+                <div className="pl-6">
+                  {detailsRequest.residentId ? (
+                    <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-lg border border-green-200">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Verified Resident</span>
+                      <span className="text-sm text-green-600">- Linked to barangay database</span>
+                    </div>
+                  ) : verificationResult ? (
+                    <div className={`flex items-start gap-2 p-3 rounded-lg border ${
+                      verificationResult.verified 
+                        ? 'bg-green-50 text-green-700 border-green-200' 
+                        : 'bg-red-50 text-red-700 border-red-200'
+                    }`}>
+                      {verificationResult.verified ? (
+                        <CheckCircle className="h-5 w-5 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 mt-0.5" />
+                      )}
+                      <span className="text-sm">{verificationResult.message}</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <div className="text-sm text-muted-foreground">
+                        Verify if this person is a registered resident of the barangay before processing.
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleVerifyResident(detailsRequest)}
+                          disabled={isVerifying || !detailsRequest.householdNumber || !detailsRequest.birthDate}
+                        >
+                          {isVerifying ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Verifying...
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="h-4 w-4 mr-2" />
+                              Verify Resident
+                            </>
+                          )}
+                        </Button>
+                        {(!detailsRequest.householdNumber || !detailsRequest.birthDate) && (
+                          <span className="text-xs text-amber-600">
+                            Missing {!detailsRequest.householdNumber ? 'household number' : ''} 
+                            {!detailsRequest.householdNumber && !detailsRequest.birthDate ? ' and ' : ''}
+                            {!detailsRequest.birthDate ? 'birth date' : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Resident Information */}
+              <div className="space-y-4">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Resident Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Full Name</Label>
+                    <p className="font-medium">{detailsRequest.residentName}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Household Number</Label>
+                    <p>{detailsRequest.householdNumber || 'Not provided'}</p>
+                  </div>
+                  {detailsRequest.residentNotes && (
+                    <div className="space-y-1 col-span-2">
+                      <Label className="text-xs text-muted-foreground">Additional Info</Label>
+                      <p className="text-sm">{detailsRequest.residentNotes}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sensitive Contact Details - collapsed by default */}
+                <div className="pl-6">
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="sensitive-details" className="border rounded-lg">
+                      <AccordionTrigger className="px-4 py-3 text-sm font-medium hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-amber-500" />
+                          Sensitive Contact Details
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mb-3 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Contains personal information. Handle per data privacy policy.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Phone className="h-3 w-3" /> Contact Number
+                            </Label>
+                            <p>{detailsRequest.contactNumber || 'Not provided'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Mail className="h-3 w-3" /> Email
+                            </Label>
+                            <p>{detailsRequest.email || 'Not provided'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Birth Date</Label>
+                            <p>{detailsRequest.birthDate || 'Not provided'}</p>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
+              </div>
+
+              {/* Request Details */}
+              <div className="space-y-4">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Request Details
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Date Submitted</Label>
+                    <p>{detailsRequest.dateSubmitted}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Priority</Label>
+                    <Badge variant={detailsRequest.priority === 'Urgent' ? 'destructive' : 'secondary'}>
+                      {detailsRequest.priority || 'Normal'}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Preferred Pickup Date</Label>
+                    <p>{detailsRequest.readyDate || 'Not specified'}</p>
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs text-muted-foreground">Purpose</Label>
+                    <p className="text-sm">{detailsRequest.purpose || 'Not provided'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Processing Information */}
+              {(detailsRequest.processedBy || detailsRequest.notes || detailsRequest.rejectionReason) && (
+                <div className="space-y-4">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    Processing Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+                    {detailsRequest.processedBy && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Processed By</Label>
+                        <p>{detailsRequest.processedBy}</p>
+                      </div>
+                    )}
+                    {detailsRequest.processedDate && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Processed Date</Label>
+                        <p>{detailsRequest.processedDate}</p>
+                      </div>
+                    )}
+                    {detailsRequest.notes && (
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs text-muted-foreground">Admin Notes</Label>
+                        <p className="text-sm">{detailsRequest.notes}</p>
+                      </div>
+                    )}
+                    {detailsRequest.rejectionReason && (
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs text-muted-foreground text-red-600 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" /> Rejection Reason
+                        </Label>
+                        <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{detailsRequest.rejectionReason}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>
+              Close
+            </Button>
+            {detailsRequest && detailsRequest.status !== "released" && (
+              <Button
+                variant="outline"
+                className="text-primary border-primary/30 hover:bg-primary/10"
+                onClick={() => {
+                  setShowDetailsDialog(false);
+                  handleOpenUpdateStatusDialog(detailsRequest);
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Update Status
+              </Button>
+            )}
+            {detailsRequest && (detailsRequest.status === "pending" || detailsRequest.status === "verifying") && (
+              <>
+                <Button 
+                  variant="default" 
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => {
+                    setShowDetailsDialog(false);
+                    handleAction("Approve", detailsRequest);
+                  }}
+                  disabled={isProcessing}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => {
+                    setShowDetailsDialog(false);
+                    handleAction("Reject", detailsRequest);
+                  }}
+                  disabled={isProcessing}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Status Dialog */}
+      <Dialog open={showUpdateStatusDialog} onOpenChange={setShowUpdateStatusDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Request Status</DialogTitle>
+            <DialogDescription>
+              Change the status and add remarks for this certificate request.
+            </DialogDescription>
+          </DialogHeader>
+          {updateStatusRequest && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm"><strong>Control No:</strong> {updateStatusRequest.id}</p>
+                <p className="text-sm"><strong>Resident:</strong> {updateStatusRequest.residentName}</p>
+                <p className="text-sm"><strong>Certificate:</strong> {updateStatusRequest.certificateType}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>New Status</Label>
+                <Select value={updateStatusValue} onValueChange={setUpdateStatusValue}>
+                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Under Review">Under Review</SelectItem>
+                    <SelectItem value="Incomplete Requirements">Incomplete Requirements</SelectItem>
+                    <SelectItem value="Approved">Approved</SelectItem>
+                    <SelectItem value="Ready for Pickup">Ready for Pickup</SelectItem>
+                    <SelectItem value="Released">Released</SelectItem>
+                    <SelectItem value="Rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Remarks / Notes (visible to resident)</Label>
+                <Textarea
+                  value={updateStatusRemarks}
+                  onChange={(e) => setUpdateStatusRemarks(e.target.value)}
+                  placeholder="e.g., Missing valid ID. Please bring it to the barangay hall."
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use this for missing requirements, pickup instructions, rejection reasons, or special notes.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUpdateStatusDialog(false)} disabled={isProcessing}>Cancel</Button>
+            <Button onClick={handleConfirmUpdateStatus} disabled={isProcessing || !updateStatusValue}>
+              {isProcessing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Updating...</> : "Update Status"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rejection Reason Dialog */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="h-5 w-5" />
+              Reject Request
+            </DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this certificate request. This will be visible to the resident.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {requestToReject && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm">
+                  <strong>Request:</strong> {requestToReject.id}
+                </p>
+                <p className="text-sm">
+                  <strong>Resident:</strong> {requestToReject.residentName}
+                </p>
+                <p className="text-sm">
+                  <strong>Certificate:</strong> {requestToReject.certificateType}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="rejection-reason" className="text-sm font-medium">
+                  Rejection Reason <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  id="rejection-reason"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="e.g., Incomplete documentation. Please bring valid ID when visiting the barangay hall."
+                  rows={4}
+                  className="resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This message will be shown to the resident when they track their request.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowRejectDialog(false);
+                setRequestToReject(null);
+                setRejectionReason("");
+              }}
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleConfirmReject}
+              disabled={isProcessing || !rejectionReason.trim()}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Confirm Rejection
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Announcement Dialog */}
+      <Dialog open={showAnnouncementDialog} onOpenChange={setShowAnnouncementDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingAnnouncement ? "Edit Announcement" : "Create New Announcement"}</DialogTitle>
+            <DialogDescription>
+              {editingAnnouncement 
+                ? "Update the announcement details below. Changes will be visible on the landing page immediately."
+                : "Fill in the details below to create a new announcement. It will appear on the landing page for residents."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Title (English)*</Label>
+              <Input
+                id="title"
+                value={announcementForm.title}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
+                placeholder="Enter announcement title"
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAutoTranslate}
+                disabled={isTranslating || (!announcementForm.title && !announcementForm.description)}
+              >
+                {isTranslating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Languages className="h-4 w-4 mr-2" />
+                )}
+                {isTranslating ? "Translating..." : "Auto-translate to Tagalog"}
+              </Button>
+            </div>
+            <div>
+              <Label htmlFor="titleTl">Title (Tagalog)</Label>
+              <Input
+                id="titleTl"
+                value={announcementForm.titleTl}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, titleTl: e.target.value })}
+                placeholder="Ilagay ang pamagat"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description (English)*</Label>
+              <Textarea
+                id="description"
+                value={announcementForm.description}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, description: e.target.value })}
+                placeholder="Enter announcement description"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="descriptionTl">Description (Tagalog)</Label>
+              <Textarea
+                id="descriptionTl"
+                value={announcementForm.descriptionTl}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, descriptionTl: e.target.value })}
+                placeholder="Ilagay ang deskripsyon"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="type">Type*</Label>
+              <Select
+                value={announcementForm.type}
+                onValueChange={(value: "important" | "general") => 
+                  setAnnouncementForm({ ...announcementForm, type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="important">Important (Yellow/Red)</SelectItem>
+                  <SelectItem value="general">General (Blue)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="announcementImage">Image (Optional)</Label>
+              <Input
+                id="announcementImage"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setAnnouncementForm({ ...announcementForm, imageFile: file });
+                }}
+              />
+              {(announcementForm.imageFile || announcementForm.imageUrl) && (
+                <div className="mt-2 relative inline-block">
+                  <img
+                    src={announcementForm.imageFile ? URL.createObjectURL(announcementForm.imageFile) : announcementForm.imageUrl}
+                    alt="Preview"
+                    className="h-20 w-20 rounded-md object-cover border"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground"
+                    onClick={() => setAnnouncementForm({ ...announcementForm, imageFile: null, imageUrl: "" })}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAnnouncementDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateAnnouncement}>
+              {editingAnnouncement ? "Update" : "Create"} Announcement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resident Rejection Dialog */}
+      <Dialog open={residentRejectDialogOpen} onOpenChange={setResidentRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Registration</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reject the registration for{" "}
+              <strong>{selectedResidentForReject?.first_name} {selectedResidentForReject?.last_name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="resident-rejection-reason">Reason for Rejection (Optional)</Label>
+              <Textarea
+                id="resident-rejection-reason"
+                placeholder="Enter the reason for rejection..."
+                value={residentRejectionReason}
+                onChange={(e) => setResidentRejectionReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResidentRejectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleRejectResident}
+              disabled={processingResidentId === selectedResidentForReject?.id}
+            >
+              {processingResidentId === selectedResidentForReject?.id ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Reject Registration
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Delete Announcement Confirmation Dialog */}
+      <AlertDialog open={deleteAnnouncementDialogOpen} onOpenChange={setDeleteAnnouncementDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Announcement</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{announcementToDelete?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingAnnouncement}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAnnouncement}
+              disabled={isDeletingAnnouncement}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingAnnouncement ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {activeTab !== "messages" && <StaffChatWidget />}
+    </SidebarProvider>
+  );
+};
+
+export default StaffDashboard;

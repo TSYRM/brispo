@@ -1,0 +1,1813 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { 
+  Loader2, 
+  Home, 
+  Users, 
+  Droplets, 
+  Zap, 
+  FileText,
+  Send,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  Plus,
+  Trash2,
+  UserPlus,
+  GraduationCap,
+  Leaf,
+  Stethoscope,
+  Heart
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { useResidentAuth } from "@/hooks/useResidentAuth";
+
+// Form field options
+const HOUSE_OWNERSHIP = ["Owned", "Rented", "Caretaker", "Others"];
+const LOT_OWNERSHIP = ["Owned", "Rented", "Caretaker", "Others"];
+const DWELLING_TYPES = ["Permanent concrete", "Semi Permanent", "Temporary", "Boarding House", "Others"];
+const LIGHTING_SOURCES = ["Electricity", "Kerosene", "Solar", "Others"];
+const WATER_SOURCES = ["Spring", "Deepwell (private)", "Deepwell (public)"];
+const WATER_STORAGE = ["Tank", "Elevated Tank", "Jars", "Drums/Cans", "Plastic Containers", "Others"];
+const FOOD_STORAGE = ["Refrigerator", "Cabinet/Shelves", "Others"];
+const TOILET_FACILITIES = ["Flush with septic tank", "Flush with sewer system", "Water sealed (pit)", "Pit privy"];
+const GARBAGE_DISPOSAL = ["City collection system", "Communal pit", "Backyard pit", "Open dump", "Composting", "Burning", "Others"];
+const DRAINAGE_FACILITIES = ["Open drainage", "Closed drainage", "None", "Others"];
+const COMMUNICATION_SERVICES = ["Telephone", "Cellular networks", "Internet", "Postal Services", "Others"];
+const MEANS_OF_TRANSPORT = ["PUB", "PUJ", "Taxi", "Private car", "Motorcycle", "Bicycle", "Others"];
+const INFO_SOURCES = ["TV", "Radio", "Newspaper", "Internet", "Others"];
+const GENDERS = ["Male", "Female"];
+const RELATIONSHIPS = ["Head", "Spouse", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandfather", "Grandmother", "Grandson", "Granddaughter", "Son-in-law", "Daughter-in-law", "Other Relative", "Non-relative", "Tenant", "Boarder", "Helper"];
+const EDUCATION_LEVELS = ["No formal education", "Elementary level", "Elementary graduate", "High school level", "High school graduate", "Vocational", "College level", "College graduate", "Post-graduate"];
+const CIVIL_STATUSES = ["Single", "Married", "Widowed", "Separated", "Divorced", "Live-in"];
+const RELIGIONS = ["Roman Catholic", "Protestant", "Iglesia ni Cristo", "Islam", "Buddhist", "Others"];
+const SCHOOLING_STATUSES = ["In School", "Out of School", "Not Yet in School", "Graduate"];
+const EMPLOYMENT_STATUSES = ["Employed", "Unemployed", "Self-employed", "Student", "Retired", "Housewife/Househusband"];
+const INCOME_RANGES = ["3,000 & below", "3,001-4,999", "5,000-6,999", "7,000-8,999", "9,000-10,999", "11,000-14,999", "15,000-19,999", "20,000 & above", "None"];
+
+interface HouseholdMember {
+  id: string;
+  full_name: string;
+  birth_date: string;
+  age: number | null;
+  gender: string;
+  relationship_to_head: string;
+  civil_status: string;
+  religion: string;
+  schooling_status: string;
+  education_level: string;
+  employment_status: string;
+  occupation: string;
+  monthly_income: string;
+  is_pwd: boolean;
+  is_solo_parent: boolean;
+  is_tenant: boolean;
+}
+
+interface EcologicalProfileFormProps {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+interface SubmissionData {
+  id?: string;
+  submission_number?: string;
+  status?: string;
+  household_number: string;
+  address: string;
+  house_number: string;
+  street_purok: string;
+  district: string;
+  years_staying: number | null;
+  place_of_origin: string;
+  ethnic_group: string;
+  house_ownership: string;
+  lot_ownership: string;
+  dwelling_type: string;
+  lighting_source: string;
+  water_supply_level: string;
+  water_storage: string[];
+  food_storage_type: string[];
+  toilet_facilities: string[];
+  drainage_facilities: string[];
+  garbage_disposal: string[];
+  communication_services: string[];
+  means_of_transport: string[];
+  info_sources: string[];
+  household_members: any[];
+  health_data: any;
+  is_4ps_beneficiary: boolean;
+  solo_parent_count: number;
+  pwd_count: number;
+  additional_notes: string;
+  respondent_name: string;
+  respondent_relation: string;
+  interview_date: string;
+  interviewer_name: string;
+  // Custom "Others" text values
+  other_values?: {
+    water_storage?: string;
+    food_storage_type?: string;
+    garbage_disposal?: string;
+    drainage_facilities?: string;
+    communication_services?: string;
+    means_of_transport?: string;
+    info_sources?: string;
+  };
+}
+
+const defaultFormData: SubmissionData = {
+  household_number: "",
+  address: "",
+  house_number: "",
+  street_purok: "",
+  district: "",
+  years_staying: null,
+  place_of_origin: "",
+  ethnic_group: "",
+  house_ownership: "",
+  lot_ownership: "",
+  dwelling_type: "",
+  lighting_source: "",
+  water_supply_level: "",
+  water_storage: [],
+  food_storage_type: [],
+  toilet_facilities: [],
+  drainage_facilities: [],
+  garbage_disposal: [],
+  communication_services: [],
+  means_of_transport: [],
+  info_sources: [],
+  household_members: [],
+  health_data: {},
+  is_4ps_beneficiary: false,
+  solo_parent_count: 0,
+  pwd_count: 0,
+  additional_notes: "",
+  respondent_name: "",
+  respondent_relation: "",
+  interview_date: format(new Date(), "yyyy-MM-dd"),
+  interviewer_name: "",
+  other_values: {},
+};
+
+const EcologicalProfileForm = ({ onSuccess, onCancel }: EcologicalProfileFormProps) => {
+  const { user, profile } = useResidentAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState("basic-info");
+  const [formData, setFormData] = useState<SubmissionData>(defaultFormData);
+  const [existingSubmissions, setExistingSubmissions] = useState<any[]>([]);
+  const [residentId, setResidentId] = useState<string | null>(null);
+  const [householdNumberError, setHouseholdNumberError] = useState<string | null>(null);
+  const [isCheckingHousehold, setIsCheckingHousehold] = useState(false);
+  const [existingHouseholdId, setExistingHouseholdId] = useState<string | null>(null);
+  const [editingSubmissionId, setEditingSubmissionId] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
+
+  // Load existing submissions and resident profile
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user) return;
+      setIsLoading(true);
+      
+      try {
+        // Get resident ID
+        const { data: residentData } = await supabase
+          .from("residents")
+          .select("id, first_name, middle_name, last_name, household_id")
+          .eq("user_id", user.id)
+          .single();
+
+        if (residentData) {
+          setResidentId(residentData.id);
+          
+          // Pre-fill respondent name
+          const fullName = [residentData.first_name, residentData.middle_name, residentData.last_name]
+            .filter(Boolean)
+            .join(" ");
+          setFormData(prev => ({
+            ...prev,
+            respondent_name: fullName,
+            respondent_relation: "Self"
+          }));
+
+          // If resident has household, pre-fill household data
+          if (residentData.household_id) {
+            const { data: householdData } = await supabase
+              .from("households")
+              .select("*")
+              .eq("id", residentData.household_id)
+              .single();
+
+            if (householdData) {
+              setFormData(prev => ({
+                ...prev,
+                address: householdData.address || "",
+                house_number: householdData.house_number || "",
+                street_purok: householdData.street_purok || "",
+                district: householdData.district || "",
+                years_staying: householdData.years_staying,
+                place_of_origin: householdData.place_of_origin || "",
+                ethnic_group: householdData.ethnic_group || "",
+                house_ownership: householdData.house_ownership || "",
+                lot_ownership: householdData.lot_ownership || "",
+                dwelling_type: householdData.dwelling_type || "",
+                lighting_source: householdData.lighting_source || "",
+                water_supply_level: householdData.water_supply_level || "",
+                water_storage: Array.isArray(householdData.water_storage) ? (householdData.water_storage as string[]) : [],
+                food_storage_type: Array.isArray(householdData.food_storage_type) ? (householdData.food_storage_type as string[]) : [],
+                toilet_facilities: Array.isArray(householdData.toilet_facilities) ? (householdData.toilet_facilities as string[]) : [],
+                drainage_facilities: Array.isArray(householdData.drainage_facilities) ? (householdData.drainage_facilities as string[]) : [],
+                garbage_disposal: Array.isArray(householdData.garbage_disposal) ? (householdData.garbage_disposal as string[]) : [],
+                communication_services: Array.isArray(householdData.communication_services) ? (householdData.communication_services as string[]) : [],
+                means_of_transport: Array.isArray(householdData.means_of_transport) ? (householdData.means_of_transport as string[]) : [],
+                info_sources: Array.isArray(householdData.info_sources) ? (householdData.info_sources as string[]) : [],
+              }));
+            }
+          }
+        }
+
+        // Load existing submissions
+        const { data: submissions } = await supabase
+          .from("ecological_profile_submissions")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (submissions) {
+          setExistingSubmissions(submissions);
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  // Debounced household number check - only check for pending submissions, skip "already exists" warning
+  const [householdNumberWarning, setHouseholdNumberWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkHouseholdNumber = async (householdNumber: string) => {
+      if (!householdNumber.trim()) {
+        setHouseholdNumberError(null);
+        setHouseholdNumberWarning(null);
+        setExistingHouseholdId(null);
+        return;
+      }
+
+      setIsCheckingHousehold(true);
+      try {
+        // Check for pending submissions
+        const { data: pendingSubmission } = await supabase
+          .from("ecological_profile_submissions")
+          .select("id, submission_number, status")
+          .eq("household_number", householdNumber.trim())
+          .eq("status", "pending")
+          .maybeSingle();
+
+        if (pendingSubmission) {
+          setHouseholdNumberError(
+            `There's already a pending submission (${pendingSubmission.submission_number}) for this household number. Please wait for it to be reviewed.`
+          );
+          setHouseholdNumberWarning(null);
+          setExistingHouseholdId(null);
+        } else {
+          setHouseholdNumberError(null);
+
+          // Check if household number already exists in households table (warning only)
+          const { data: existingHousehold } = await supabase
+            .from("households")
+            .select("id, household_number")
+            .eq("household_number", householdNumber.trim())
+            .maybeSingle();
+
+          if (existingHousehold) {
+            setHouseholdNumberWarning(
+              `Household number "${householdNumber.trim()}" already exists. Submitting will update the existing household data.`
+            );
+            setExistingHouseholdId(existingHousehold.id);
+          } else {
+            setHouseholdNumberWarning(null);
+            setExistingHouseholdId(null);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking household number:", error);
+      } finally {
+        setIsCheckingHousehold(false);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      if (formData.household_number) {
+        checkHouseholdNumber(formData.household_number);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.household_number]);
+
+  const handleCheckboxArray = (field: keyof SubmissionData, value: string, checked: boolean) => {
+    const currentArray = formData[field] as string[];
+    if (checked) {
+      setFormData(prev => ({ ...prev, [field]: [...currentArray, value] }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: currentArray.filter(v => v !== value) }));
+      // Clear the "Others" text value when unchecking
+      if (value === "Others") {
+        setFormData(prev => ({
+          ...prev,
+          other_values: { ...prev.other_values, [field]: "" }
+        }));
+      }
+    }
+  };
+
+  const handleOtherValueChange = (field: keyof NonNullable<SubmissionData['other_values']>, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      other_values: { ...prev.other_values, [field]: value }
+    }));
+  };
+
+  const renderCheckboxWithOthers = (
+    label: string,
+    field: keyof SubmissionData,
+    options: string[],
+    idPrefix: string,
+    columns: string = "grid-cols-2 md:grid-cols-3"
+  ) => {
+    const currentArray = formData[field] as string[];
+    const hasOthers = options.includes("Others");
+    const othersChecked = currentArray.includes("Others");
+    const otherFieldKey = field as keyof NonNullable<SubmissionData['other_values']>;
+
+    return (
+      <div>
+        <Label className="text-sm font-medium">{label}</Label>
+        <div className={`grid ${columns} gap-2 mt-2`}>
+          {options.map((item) => (
+            <div key={item} className="flex items-center space-x-2">
+              <Checkbox
+                id={`${idPrefix}-${item}`}
+                checked={currentArray.includes(item)}
+                onCheckedChange={(checked) => handleCheckboxArray(field, item, !!checked)}
+              />
+              <label htmlFor={`${idPrefix}-${item}`} className="text-sm">{item}</label>
+            </div>
+          ))}
+        </div>
+        {hasOthers && othersChecked && (
+          <div className="mt-2 ml-6">
+            <Input
+              placeholder="Please specify..."
+              value={formData.other_values?.[otherFieldKey] || ""}
+              onChange={(e) => handleOtherValueChange(otherFieldKey, e.target.value)}
+              className="max-w-xs"
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Helper: create a household member from the resident's profile
+  const createResidentMember = (): HouseholdMember => ({
+    id: `resident-${profile?.id || crypto.randomUUID()}`,
+    full_name: profile?.fullName || "",
+    birth_date: profile?.birthDate || "",
+    age: profile?.birthDate ? calculateAgeFromBirthDate(profile.birthDate) : null,
+    gender: profile?.gender || "",
+    relationship_to_head: "Head",
+    civil_status: profile?.civilStatus || "",
+    religion: profile?.religion || "",
+    schooling_status: "",
+    education_level: profile?.educationAttainment || "",
+    employment_status: profile?.employmentStatus || "",
+    occupation: profile?.occupation || "",
+    monthly_income: "",
+    is_pwd: false,
+    is_solo_parent: false,
+    is_tenant: false,
+  });
+
+  // Check if resident is already in the members list
+  const isResidentInMembers = (): boolean => {
+    if (!profile) return false;
+    const residentFullName = profile.fullName.trim().toLowerCase();
+    const residentLastFirst = `${profile.lastName}, ${profile.firstName}`.trim().toLowerCase();
+    return formData.household_members.some((m: HouseholdMember) => {
+      const memberName = (m.full_name || "").trim().toLowerCase();
+      return memberName === residentFullName || memberName === residentLastFirst || m.id === `resident-${profile.id}`;
+    });
+  };
+
+  // Auto-add resident to household members when form loads and profile is available
+  useEffect(() => {
+    if (profile && !isResidentInMembers() && formData.household_members !== undefined) {
+      // Only auto-add if we're not in edit mode loading state
+      if (!isEditMode || editingSubmissionId) {
+        const residentMember = createResidentMember();
+        setFormData(prev => ({
+          ...prev,
+          household_members: [residentMember, ...prev.household_members]
+        }));
+      }
+    }
+  }, [profile, isEditMode]);
+
+  const handleSubmit = async () => {
+    if (!residentId) {
+      toast.error("You must be a registered resident to submit");
+      return;
+    }
+
+    if (!formData.household_number) {
+      toast.error("Please enter a household number");
+      return;
+    }
+
+    if (!consentGiven) {
+      toast.error("Respondent consent is required before submission");
+      return;
+    }
+
+    if (!formData.street_purok.trim()) {
+      toast.error("Purok/Street is required");
+      return;
+    }
+
+    if (!formData.house_number.trim()) {
+      toast.error("House number is required");
+      return;
+    }
+
+    if (!formData.interview_date) {
+      toast.error("Date of interview is required");
+      return;
+    }
+
+    // Block submission if there's a pending submission for this household number (only for new submissions)
+    if (!isEditMode && householdNumberError && !existingHouseholdId) {
+      toast.error("Cannot submit", {
+        description: "There's already a pending submission for this household number."
+      });
+      return;
+    }
+
+    // Validate household head - must have exactly one
+    const headsOfHousehold = formData.household_members.filter(
+      (member: HouseholdMember) => member.relationship_to_head === "Head"
+    );
+    
+    if (headsOfHousehold.length === 0) {
+      toast.error("Please add at least one household member marked as 'Head'", {
+        description: "Every household must have a head of household designated."
+      });
+      return;
+    }
+    
+    if (headsOfHousehold.length > 1) {
+      toast.error("Only one household member can be marked as 'Head'", {
+        description: "Please ensure only one person is designated as head of household."
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Extract nested data from health_data for proper database columns
+      const healthData = formData.health_data as any;
+      
+      // Prepare submission data with proper mapping to database columns
+      const submissionData = {
+        household_number: formData.household_number,
+        address: formData.address,
+        house_number: formData.house_number,
+        street_purok: formData.street_purok,
+        district: formData.district,
+        years_staying: formData.years_staying,
+        place_of_origin: formData.place_of_origin,
+        ethnic_group: formData.ethnic_group,
+        house_ownership: formData.house_ownership,
+        lot_ownership: formData.lot_ownership,
+        dwelling_type: formData.dwelling_type,
+        lighting_source: formData.lighting_source,
+        water_supply_level: formData.water_supply_level,
+        water_storage: formData.water_storage,
+        food_storage_type: formData.food_storage_type,
+        toilet_facilities: formData.toilet_facilities,
+        drainage_facilities: formData.drainage_facilities,
+        garbage_disposal: formData.garbage_disposal,
+        communication_services: formData.communication_services,
+        means_of_transport: formData.means_of_transport,
+        info_sources: formData.info_sources,
+        household_members: formData.household_members.map((m: HouseholdMember) => ({
+          ...m,
+          is_head_of_household: m.relationship_to_head === "Head",
+        })),
+        // Map to separate database columns
+        education_data: healthData?.education || {},
+        health_data: {
+          malnutrition: healthData?.malnutrition || {},
+          seniorCount: healthData?.seniorCount || 0,
+          pregnantCount: healthData?.pregnantCount || 0,
+          other_values: formData.other_values
+        },
+        disability_data: healthData?.disability || {},
+        death_data: healthData?.deaths || {},
+        family_planning: {
+          isAcceptor: healthData?.familyPlanningAcceptor || false,
+          type: healthData?.familyPlanningType || ""
+        },
+        pregnant_data: {
+          count: healthData?.pregnantCount || 0
+        },
+        senior_data: {
+          count: healthData?.seniorCount || 0
+        },
+        is_4ps_beneficiary: formData.is_4ps_beneficiary,
+        solo_parent_count: formData.solo_parent_count,
+        pwd_count: formData.pwd_count,
+        additional_notes: formData.additional_notes,
+        respondent_name: formData.respondent_name,
+        respondent_relation: formData.respondent_relation,
+        interview_date: formData.interview_date,
+        interviewer_name: formData.interviewer_name || null,
+        consent_datetime: new Date().toISOString(),
+      };
+
+      if (isEditMode && editingSubmissionId) {
+        // Update existing submission - always reset status to pending for re-review
+        const { error } = await supabase
+          .from("ecological_profile_submissions")
+          .update({
+            ...submissionData,
+            status: "pending", // Reset to pending for re-review
+            rejection_reason: null, // Clear any previous rejection reason
+            reviewed_at: null,
+            reviewed_by: null,
+          })
+          .eq("id", editingSubmissionId);
+
+        if (error) throw error;
+
+        toast.success("Submission updated and resubmitted!", {
+          description: "Your changes have been saved and sent for review."
+        });
+        
+        // Reset edit mode
+        setIsEditMode(false);
+        setEditingSubmissionId(null);
+        setFormData(defaultFormData);
+        
+        // Reload submissions
+        const { data: submissions } = await supabase
+          .from("ecological_profile_submissions")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (submissions) {
+          setExistingSubmissions(submissions);
+        }
+      } else {
+        // Generate submission number for new submission
+        const { data: submissionNumber, error: numError } = await supabase
+          .rpc("generate_ecological_submission_number");
+
+        if (numError) throw numError;
+
+        // Insert new submission
+        const { error } = await supabase
+          .from("ecological_profile_submissions")
+          .insert({
+            submission_number: submissionNumber,
+            submitted_by_resident_id: residentId,
+            ...submissionData,
+          });
+
+        if (error) throw error;
+
+        toast.success("Ecological profile submitted successfully!", {
+          description: `Submission number: ${submissionNumber}. Staff will review your submission.`
+        });
+        
+        onSuccess?.();
+      }
+    } catch (error: any) {
+      console.error("Error submitting:", error);
+      toast.error("Failed to submit", { description: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditSubmission = (submission: any) => {
+    // Reconstruct health_data from separate database columns for form editing
+    const reconstructedHealthData = {
+      education: submission.education_data || {},
+      malnutrition: submission.health_data?.malnutrition || {},
+      disability: submission.disability_data || {},
+      deaths: submission.death_data || {},
+      familyPlanningAcceptor: submission.family_planning?.isAcceptor || false,
+      familyPlanningType: submission.family_planning?.type || "",
+      seniorCount: submission.senior_data?.count || submission.health_data?.seniorCount || 0,
+      pregnantCount: submission.pregnant_data?.count || submission.health_data?.pregnantCount || 0,
+    };
+
+    // Load submission data into form
+    setFormData({
+      id: submission.id,
+      submission_number: submission.submission_number,
+      status: submission.status,
+      household_number: submission.household_number || "",
+      address: submission.address || "",
+      house_number: submission.house_number || "",
+      street_purok: submission.street_purok || "",
+      district: submission.district || "",
+      years_staying: submission.years_staying,
+      place_of_origin: submission.place_of_origin || "",
+      ethnic_group: submission.ethnic_group || "",
+      house_ownership: submission.house_ownership || "",
+      lot_ownership: submission.lot_ownership || "",
+      dwelling_type: submission.dwelling_type || "",
+      lighting_source: submission.lighting_source || "",
+      water_supply_level: submission.water_supply_level || "",
+      water_storage: Array.isArray(submission.water_storage) ? submission.water_storage : [],
+      food_storage_type: Array.isArray(submission.food_storage_type) ? submission.food_storage_type : [],
+      toilet_facilities: Array.isArray(submission.toilet_facilities) ? submission.toilet_facilities : [],
+      drainage_facilities: Array.isArray(submission.drainage_facilities) ? submission.drainage_facilities : [],
+      garbage_disposal: Array.isArray(submission.garbage_disposal) ? submission.garbage_disposal : [],
+      communication_services: Array.isArray(submission.communication_services) ? submission.communication_services : [],
+      means_of_transport: Array.isArray(submission.means_of_transport) ? submission.means_of_transport : [],
+      info_sources: Array.isArray(submission.info_sources) ? submission.info_sources : [],
+      household_members: Array.isArray(submission.household_members) 
+        ? (submission.household_members as HouseholdMember[])
+        : [],
+      health_data: reconstructedHealthData,
+      is_4ps_beneficiary: submission.is_4ps_beneficiary || false,
+      solo_parent_count: submission.solo_parent_count || 0,
+      pwd_count: submission.pwd_count || 0,
+      additional_notes: submission.additional_notes || "",
+      respondent_name: submission.respondent_name || "",
+      respondent_relation: submission.respondent_relation || "",
+      interview_date: submission.interview_date || format(new Date(), "yyyy-MM-dd"),
+      interviewer_name: submission.interviewer_name || "",
+      other_values: submission.health_data?.other_values || {},
+    });
+    
+    // If submission had consent, pre-check consent
+    if (submission.consent_datetime) {
+      setConsentGiven(true);
+    }
+    
+    setEditingSubmissionId(submission.id);
+    setIsEditMode(true);
+    setActiveTab("basic-info");
+    
+    toast.info("Editing submission", {
+      description: `You are now editing ${submission.submission_number}`
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditingSubmissionId(null);
+    setFormData(defaultFormData);
+    
+    // Re-load default resident data using fullName from profile
+    if (profile) {
+      setFormData(prev => ({
+        ...prev,
+        respondent_name: profile.fullName,
+        respondent_relation: "Self"
+      }));
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      pending: "secondary",
+      under_review: "default",
+      approved: "outline",
+      rejected: "destructive",
+    };
+    
+    const icons: Record<string, React.ReactNode> = {
+      pending: <Clock className="h-3 w-3 mr-1" />,
+      under_review: <AlertCircle className="h-3 w-3 mr-1" />,
+      approved: <CheckCircle className="h-3 w-3 mr-1" />,
+      rejected: <AlertCircle className="h-3 w-3 mr-1" />,
+    };
+
+    return (
+      <Badge variant={variants[status] || "secondary"} className="capitalize">
+        {icons[status]}
+        {status.replace("_", " ")}
+      </Badge>
+    );
+  };
+
+  const createEmptyMember = (): HouseholdMember => ({
+    id: crypto.randomUUID(),
+    full_name: "",
+    birth_date: "",
+    age: null,
+    gender: "",
+    relationship_to_head: "",
+    civil_status: "",
+    religion: "",
+    schooling_status: "",
+    education_level: "",
+    employment_status: "",
+    occupation: "",
+    monthly_income: "",
+    is_pwd: false,
+    is_solo_parent: false,
+    is_tenant: false,
+  });
+
+  const calculateAgeFromBirthDate = (birthDate: string): number | null => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const handleBirthDateChange = (memberId: string, birthDate: string) => {
+    const age = calculateAgeFromBirthDate(birthDate);
+    setFormData(prev => ({
+      ...prev,
+      household_members: prev.household_members.map((m: HouseholdMember) => 
+        m.id === memberId ? { ...m, birth_date: birthDate, age } : m
+      )
+    }));
+  };
+
+  const [editingMember, setEditingMember] = useState<HouseholdMember | null>(null);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [newMember, setNewMember] = useState<HouseholdMember>(createEmptyMember());
+
+  const handleSaveNewMember = () => {
+    if (!newMember.full_name) {
+      toast.error("Please enter the member's full name");
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      household_members: [...prev.household_members, newMember]
+    }));
+    setNewMember(createEmptyMember());
+    setIsAddMemberOpen(false);
+    toast.success("Household member added");
+  };
+
+  const handleUpdateMember = () => {
+    if (!editingMember) return;
+    setFormData(prev => ({
+      ...prev,
+      household_members: prev.household_members.map((m: HouseholdMember) => 
+        m.id === editingMember.id ? editingMember : m
+      )
+    }));
+    setEditingMember(null);
+    toast.success("Member updated");
+  };
+
+  const addHouseholdMember = () => {
+    setFormData(prev => ({
+      ...prev,
+      household_members: [...prev.household_members, createEmptyMember()]
+    }));
+  };
+
+  const removeHouseholdMember = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      household_members: prev.household_members.filter((m: HouseholdMember) => m.id !== id)
+    }));
+  };
+
+  const updateHouseholdMember = (id: string, updates: Partial<HouseholdMember>) => {
+    setFormData(prev => ({
+      ...prev,
+      household_members: prev.household_members.map((m: HouseholdMember) => 
+        m.id === id ? { ...m, ...updates } : m
+      )
+    }));
+  };
+
+  const tabs = [
+    { id: "basic-info", label: "Basic Info", icon: FileText },
+    { id: "housing", label: "Housing", icon: Home },
+    { id: "services", label: "Services", icon: Zap },
+    { id: "education", label: "Education", icon: GraduationCap },
+    { id: "members", label: "Household Members", icon: Users },
+    { id: "environmental", label: "Environmental", icon: Leaf },
+    { id: "health", label: "Health", icon: Stethoscope },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Edit Mode Banner */}
+      {isEditMode && (
+        <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-yellow-600" />
+                <span className="font-medium text-yellow-800 dark:text-yellow-200">
+                  Editing: {formData.submission_number}
+                </span>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleCancelEdit}>
+                Cancel Edit
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Existing Submissions */}
+      {existingSubmissions.length > 0 && !isEditMode && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              My Submissions
+            </CardTitle>
+            <CardDescription>Your ecological profile census submissions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {existingSubmissions.map((sub) => {
+                const otherValues = sub.health_data?.other_values || {};
+                const hasOtherValues = Object.values(otherValues).some((v: any) => v && String(v).trim());
+                
+                return (
+                  <div key={sub.id} className="p-3 rounded-lg border bg-card">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium">{sub.submission_number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Household: {sub.household_number || "N/A"} • 
+                          Submitted: {format(new Date(sub.created_at), "MMM dd, yyyy")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditSubmission(sub)}
+                        >
+                          {sub.status === "pending" ? "Edit" : "Edit & Resubmit"}
+                        </Button>
+                        {getStatusBadge(sub.status)}
+                      </div>
+                    </div>
+                    
+                    {/* Show custom "Others" values if any */}
+                    {hasOtherValues && (
+                      <div className="mt-2 pt-2 border-t">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Custom Values (Others):</p>
+                        <div className="flex flex-wrap gap-1">
+                          {otherValues.water_storage && (
+                            <Badge variant="outline" className="text-xs">Water Storage: {otherValues.water_storage}</Badge>
+                          )}
+                          {otherValues.food_storage_type && (
+                            <Badge variant="outline" className="text-xs">Food Storage: {otherValues.food_storage_type}</Badge>
+                          )}
+                          {otherValues.garbage_disposal && (
+                            <Badge variant="outline" className="text-xs">Garbage: {otherValues.garbage_disposal}</Badge>
+                          )}
+                          {otherValues.drainage_facilities && (
+                            <Badge variant="outline" className="text-xs">Drainage: {otherValues.drainage_facilities}</Badge>
+                          )}
+                          {otherValues.communication_services && (
+                            <Badge variant="outline" className="text-xs">Communication: {otherValues.communication_services}</Badge>
+                          )}
+                          {otherValues.means_of_transport && (
+                            <Badge variant="outline" className="text-xs">Transport: {otherValues.means_of_transport}</Badge>
+                          )}
+                          {otherValues.info_sources && (
+                            <Badge variant="outline" className="text-xs">Info Source: {otherValues.info_sources}</Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {sub.status === "rejected" && sub.rejection_reason && (
+                      <p className="text-sm text-destructive mt-2 pt-2 border-t">
+                        Reason: {sub.rejection_reason}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* New Submission Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Home className="h-5 w-5" />
+            {isEditMode ? "Edit Ecological Profile Census" : "Submit Ecological Profile Census"}
+          </CardTitle>
+          <CardDescription>
+            {isEditMode 
+              ? "Update your household's ecological profile. Changes will be saved immediately."
+              : "Fill out your household's ecological profile. This will be reviewed by staff before being included in official records."
+            }
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-7 mb-6">
+              {tabs.map((tab) => (
+                <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-1 text-xs px-1">
+                  <tab.icon className="h-4 w-4 hidden lg:block" />
+                  <span className="hidden md:inline truncate">{tab.label}</span>
+                  <span className="md:hidden text-[10px]">{tab.label.split(' ')[0].substring(0, 4)}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <div className="min-h-[500px]">
+              {/* Basic Info Tab */}
+              <TabsContent value="basic-info" className="space-y-4 mt-0">
+                {/* Interview Metadata */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b">
+                  <div className="space-y-2">
+                    <Label htmlFor="interview_date">Date of Interview *</Label>
+                    <Input
+                      id="interview_date"
+                      type="date"
+                      value={formData.interview_date}
+                      onChange={(e) => setFormData({ ...formData, interview_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="interviewer_name">Interviewer Name</Label>
+                    <Input
+                      id="interviewer_name"
+                      value={formData.interviewer_name}
+                      onChange={(e) => setFormData({ ...formData, interviewer_name: e.target.value })}
+                      placeholder="Name of person conducting the interview"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="house_number">House Number</Label>
+                    <Input
+                      id="house_number"
+                      value={formData.house_number}
+                      onChange={(e) => setFormData({ ...formData, house_number: e.target.value })}
+                      placeholder="e.g., 123"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="household_number">Household/Family Number *</Label>
+                    <div className="relative">
+                      <Input
+                        id="household_number"
+                        value={formData.household_number}
+                        onChange={(e) => setFormData({ ...formData, household_number: e.target.value })}
+                        placeholder="e.g., HH-002"
+                        className={householdNumberError ? "border-destructive" : householdNumberWarning ? "border-yellow-500" : ""}
+                      />
+                      {isCheckingHousehold && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {householdNumberError && (
+                      <p className="text-sm flex items-center gap-1 text-destructive">
+                        <AlertCircle className="h-3 w-3" />
+                        {householdNumberError}
+                      </p>
+                    )}
+                    {!householdNumberError && householdNumberWarning && (
+                      <p className="text-sm flex items-center gap-1 text-yellow-600">
+                        <AlertCircle className="h-3 w-3" />
+                        {householdNumberWarning}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="street_purok">Street/Purok</Label>
+                    <Input
+                      id="street_purok"
+                      value={formData.street_purok}
+                      onChange={(e) => setFormData({ ...formData, street_purok: e.target.value })}
+                      placeholder="e.g., Purok 1"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="district">District</Label>
+                    <Input
+                      id="district"
+                      value={formData.district}
+                      onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="address">Complete Address</Label>
+                    <Input
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Full address"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="years_staying">No. of Years Staying Here</Label>
+                    <Input
+                      id="years_staying"
+                      type="number"
+                      min="0"
+                      value={formData.years_staying || ""}
+                      onChange={(e) => setFormData({ ...formData, years_staying: e.target.value ? parseInt(e.target.value) : null })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="place_of_origin">Place of Origin</Label>
+                    <Input
+                      id="place_of_origin"
+                      value={formData.place_of_origin}
+                      onChange={(e) => setFormData({ ...formData, place_of_origin: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ethnic_group">Ethnic Group</Label>
+                    <Input
+                      id="ethnic_group"
+                      value={formData.ethnic_group}
+                      onChange={(e) => setFormData({ ...formData, ethnic_group: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label htmlFor="respondent_name">Respondent Name</Label>
+                    <Input
+                      id="respondent_name"
+                      value={formData.respondent_name}
+                      onChange={(e) => setFormData({ ...formData, respondent_name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="respondent_relation">Relation to Household</Label>
+                    <Input
+                      id="respondent_relation"
+                      value={formData.respondent_relation}
+                      onChange={(e) => setFormData({ ...formData, respondent_relation: e.target.value })}
+                      placeholder="e.g., Head, Spouse, Son"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Household Members Tab */}
+              <TabsContent value="members" className="space-y-4 mt-0">
+                {/* Census Summary Stats */}
+                {formData.household_members.length > 0 && (
+                  <Card className="border-primary/20 bg-primary/5">
+                    <CardContent className="py-3">
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <div className="flex items-center gap-1.5">
+                          <Users className="h-4 w-4 text-primary" />
+                          <span className="text-muted-foreground">Total Population:</span>
+                          <span className="font-semibold text-foreground">{formData.household_members.length}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground">Male:</span>
+                          <span className="font-semibold text-foreground">
+                            {formData.household_members.filter((m: HouseholdMember) => m.gender === "Male").length}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground">Female:</span>
+                          <span className="font-semibold text-foreground">
+                            {formData.household_members.filter((m: HouseholdMember) => m.gender === "Female").length}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground">Household:</span>
+                          <span className="font-semibold text-foreground">1</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Household Members ({formData.household_members.length})
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Add all members in household {formData.household_number || "N/A"}, including yourself. Your profile has been auto-added as Head.
+                    </p>
+                  </div>
+                  <Button type="button" onClick={addHouseholdMember} size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Member
+                  </Button>
+                </div>
+
+                {formData.household_members.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed rounded-lg">
+                    <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground mb-3">No household members added yet</p>
+                    <Button type="button" onClick={addHouseholdMember} variant="outline">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add First Member
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                  <Card>
+                    <CardContent className="p-0">
+                       <div className="overflow-auto max-h-[400px] border rounded-md">
+                        <div className="min-w-[2200px]">
+                          <Table className="border">
+                            <TableHeader>
+                              <TableRow className="border-b">
+                                <TableHead className="w-10 border-r">#</TableHead>
+                                <TableHead className="min-w-[160px] border-r">Name</TableHead>
+                                <TableHead className="min-w-[140px] border-r">Relation</TableHead>
+                                <TableHead className="min-w-[140px] border-r">Birth Date</TableHead>
+                                <TableHead className="w-16 border-r">Age</TableHead>
+                                <TableHead className="min-w-[100px] border-r">Sex</TableHead>
+                                <TableHead className="min-w-[120px] border-r">Civil Status</TableHead>
+                                <TableHead className="min-w-[140px] border-r">Religion</TableHead>
+                                <TableHead className="min-w-[130px] border-r">Schooling</TableHead>
+                                <TableHead className="min-w-[160px] border-r">Education</TableHead>
+                                <TableHead className="min-w-[150px] border-r">Employment</TableHead>
+                                <TableHead className="min-w-[160px] border-r">Occupation</TableHead>
+                                <TableHead className="min-w-[140px] border-r">Income (Cash)</TableHead>
+                                <TableHead className="w-16 border-r text-center">PWD</TableHead>
+                                <TableHead className="w-20 border-r text-center">Solo Parent</TableHead>
+                                <TableHead className="w-12">Del</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {(formData.household_members as HouseholdMember[]).map((member, index) => (
+                                <TableRow key={member.id} className="border-b">
+                                  <TableCell className="font-medium text-center border-r">{index + 1}</TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Input
+                                      value={member.full_name}
+                                      onChange={(e) => updateHouseholdMember(member.id, { full_name: e.target.value })}
+                                      placeholder="Last, First"
+                                      className="h-8 text-xs"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Select value={member.relationship_to_head} onValueChange={(v) => { if (v) updateHouseholdMember(member.id, { relationship_to_head: v }); }}>
+                                      <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>{RELATIONSHIPS.map(r => <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Input
+                                      type="date"
+                                      value={member.birth_date}
+                                      onChange={(e) => {
+                                        const bd = e.target.value;
+                                        let age: number | null = null;
+                                        if (bd) {
+                                          const today = new Date();
+                                          const birth = new Date(bd);
+                                          age = today.getFullYear() - birth.getFullYear();
+                                          const m = today.getMonth() - birth.getMonth();
+                                          if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+                                        }
+                                        updateHouseholdMember(member.id, { birth_date: bd, age });
+                                      }}
+                                      className="h-8 text-xs"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center text-xs border-r">{member.age ?? "-"}</TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Select value={member.gender} onValueChange={(v) => updateHouseholdMember(member.id, { gender: v })}>
+                                      <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Sex" /></SelectTrigger>
+                                      <SelectContent>{GENDERS.map(g => <SelectItem key={g} value={g} className="text-xs">{g}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Select value={member.civil_status} onValueChange={(v) => updateHouseholdMember(member.id, { civil_status: v })}>
+                                      <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Status" /></SelectTrigger>
+                                      <SelectContent>{CIVIL_STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Select value={member.religion} onValueChange={(v) => updateHouseholdMember(member.id, { religion: v })}>
+                                      <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Religion" /></SelectTrigger>
+                                      <SelectContent>{RELIGIONS.map(r => <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Select value={member.schooling_status} onValueChange={(v) => updateHouseholdMember(member.id, { schooling_status: v })}>
+                                      <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Schooling" /></SelectTrigger>
+                                      <SelectContent>{SCHOOLING_STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Select value={member.education_level} onValueChange={(v) => updateHouseholdMember(member.id, { education_level: v })}>
+                                      <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Education" /></SelectTrigger>
+                                      <SelectContent>{EDUCATION_LEVELS.map(e => <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Select value={member.employment_status} onValueChange={(v) => updateHouseholdMember(member.id, { employment_status: v })}>
+                                      <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select..." /></SelectTrigger>
+                                      <SelectContent>{EMPLOYMENT_STATUSES.map(e => <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Input
+                                      value={member.occupation || ""}
+                                      onChange={(e) => updateHouseholdMember(member.id, { occupation: e.target.value })}
+                                      placeholder="e.g., Farmer, Teacher"
+                                      className="h-8 text-xs"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r">
+                                    <Select value={member.monthly_income} onValueChange={(v) => updateHouseholdMember(member.id, { monthly_income: v })}>
+                                      <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Income" /></SelectTrigger>
+                                      <SelectContent>{INCOME_RANGES.map(i => <SelectItem key={i} value={i} className="text-xs">{i}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r text-center">
+                                    <Checkbox
+                                      checked={member.is_pwd || false}
+                                      onCheckedChange={(checked) => updateHouseholdMember(member.id, { is_pwd: !!checked })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-1 border-r text-center">
+                                    <Checkbox
+                                      checked={member.is_solo_parent || false}
+                                      onCheckedChange={(checked) => updateHouseholdMember(member.id, { is_solo_parent: !!checked })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                      onClick={() => removeHouseholdMember(member.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <div className="flex justify-center mt-3">
+                    <Button type="button" onClick={addHouseholdMember} variant="outline" size="sm">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add Member
+                    </Button>
+                  </div>
+                  </>
+                )}
+
+                {/* Legend */}
+                {formData.household_members.length > 0 && (
+                  <Card className="mt-4">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">Equivalents Legend</CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-muted-foreground">
+                        <div>
+                          <p><strong>Sex:</strong> M - Male, F - Female</p>
+                          <p><strong>Civil Status:</strong> S - Single, M - Married, W - Widowed, Sep - Separated</p>
+                        </div>
+                        <div>
+                          <p><strong>Schooling:</strong> IS - In school, OS - Out of school, NYS - Not yet in school, G - Graduate</p>
+                          <p><strong>Income Ranges:</strong> 3k & below, 3001-4999, 5000-6999, etc.</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+
+
+              </TabsContent>
+
+              {/* Housing Tab */}
+              <TabsContent value="housing" className="space-y-4 mt-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>House Ownership</Label>
+                    <Select
+                      value={formData.house_ownership}
+                      onValueChange={(v) => setFormData({ ...formData, house_ownership: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HOUSE_OWNERSHIP.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Lot Ownership</Label>
+                    <Select
+                      value={formData.lot_ownership}
+                      onValueChange={(v) => setFormData({ ...formData, lot_ownership: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LOT_OWNERSHIP.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Dwelling Type</Label>
+                    <Select
+                      value={formData.dwelling_type}
+                      onValueChange={(v) => setFormData({ ...formData, dwelling_type: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DWELLING_TYPES.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Lighting Source</Label>
+                    <Select
+                      value={formData.lighting_source}
+                      onValueChange={(v) => setFormData({ ...formData, lighting_source: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LIGHTING_SOURCES.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Services Tab */}
+              <TabsContent value="services" className="space-y-4 mt-0">
+                <div className="space-y-4">
+                  {renderCheckboxWithOthers("Communication Services", "communication_services", COMMUNICATION_SERVICES, "comm")}
+                  {renderCheckboxWithOthers("Means of Transport", "means_of_transport", MEANS_OF_TRANSPORT, "trans")}
+                  {renderCheckboxWithOthers("Information Sources", "info_sources", INFO_SOURCES, "info")}
+                </div>
+              </TabsContent>
+
+              {/* Education Tab */}
+              <TabsContent value="education" className="space-y-4 mt-0">
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4" />
+                      Education
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <Label className="font-medium">Educational Background (Number in Household)</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[
+                          { key: "preschool", label: "Pre-school/Day care" },
+                          { key: "primary", label: "Primary/Elementary" },
+                          { key: "secondary", label: "Secondary/High School" },
+                          { key: "vocational", label: "Vocational/Technical" },
+                          { key: "college", label: "College/University" },
+                          { key: "postgraduate", label: "Post Graduate" },
+                        ].map((edu) => (
+                          <div key={edu.key} className="flex items-center gap-2">
+                            <span className="text-sm flex-1">{edu.label}</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              className="w-16"
+                              placeholder="0"
+                              value={(formData.health_data as any)?.education?.[edu.key] || ""}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                health_data: {
+                                  ...(formData.health_data as any),
+                                  education: {
+                                    ...((formData.health_data as any)?.education || {}),
+                                    [edu.key]: parseInt(e.target.value) || 0
+                                  }
+                                }
+                              })}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Environmental Tab */}
+              <TabsContent value="environmental" className="space-y-4 mt-0">
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Droplets className="h-4 w-4" />
+                      Water & Sanitation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Water Supply Source</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-2 gap-2 mt-2">
+                        {WATER_SOURCES.map((source) => (
+                          <div key={source} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`water-source-${source}`}
+                              checked={formData.water_supply_level === source}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setFormData({ ...formData, water_supply_level: source });
+                                } else if (formData.water_supply_level === source) {
+                                  setFormData({ ...formData, water_supply_level: "" });
+                                }
+                              }}
+                            />
+                            <label htmlFor={`water-source-${source}`} className="text-sm">{source}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {renderCheckboxWithOthers("Water Storage", "water_storage", WATER_STORAGE, "water")}
+                    
+                    <div>
+                      <Label className="text-sm font-medium">Toilet Facilities</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                        {TOILET_FACILITIES.map((item) => (
+                          <div key={item} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`toilet-${item}`}
+                              checked={formData.toilet_facilities.includes(item)}
+                              onCheckedChange={(checked) => handleCheckboxArray("toilet_facilities", item, !!checked)}
+                            />
+                            <label htmlFor={`toilet-${item}`} className="text-sm">{item}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {renderCheckboxWithOthers("Garbage Disposal", "garbage_disposal", GARBAGE_DISPOSAL, "garbage")}
+                    {renderCheckboxWithOthers("Drainage Facilities", "drainage_facilities", DRAINAGE_FACILITIES, "drain")}
+                    {renderCheckboxWithOthers("Food Storage", "food_storage_type", FOOD_STORAGE, "food")}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Health Tab */}
+              <TabsContent value="health" className="space-y-4 mt-0">
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Heart className="h-4 w-4" />
+                      Family Planning
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="family-planning"
+                        checked={(formData.health_data as any)?.familyPlanningAcceptor || false}
+                        onCheckedChange={(checked) => setFormData({
+                          ...formData,
+                          health_data: {
+                            ...(formData.health_data as any),
+                            familyPlanningAcceptor: !!checked
+                          }
+                        })}
+                      />
+                      <label htmlFor="family-planning" className="text-sm font-medium">Family Planning Acceptor</label>
+                    </div>
+                    {(formData.health_data as any)?.familyPlanningAcceptor && (
+                      <div className="ml-6 space-y-2">
+                        <Label>Type of Family Planning Method</Label>
+                        <Select
+                          value={(formData.health_data as any)?.familyPlanningType || ""}
+                          onValueChange={(v) => setFormData({
+                            ...formData,
+                            health_data: {
+                              ...(formData.health_data as any),
+                              familyPlanningType: v
+                            }
+                          })}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Select method" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["Pills", "IUD", "Condom", "Injectable", "Implant", "BTL", "Vasectomy", "Natural", "Others"].map((t) => (
+                              <SelectItem key={t} value={t}>{t}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base">Special Categories</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Senior Citizens (60+)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={(formData.health_data as any)?.seniorCount || ""}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            health_data: {
+                              ...(formData.health_data as any),
+                              seniorCount: parseInt(e.target.value) || 0
+                            }
+                          })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Solo Parents</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={formData.solo_parent_count}
+                          onChange={(e) => setFormData({ ...formData, solo_parent_count: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">PWD</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={formData.pwd_count}
+                          onChange={(e) => setFormData({ ...formData, pwd_count: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Pregnant Women</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={(formData.health_data as any)?.pregnantCount || ""}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            health_data: {
+                              ...(formData.health_data as any),
+                              pregnantCount: parseInt(e.target.value) || 0
+                            }
+                          })}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-4">
+                      <Checkbox
+                        id="is_4ps"
+                        checked={formData.is_4ps_beneficiary}
+                        onCheckedChange={(checked) => setFormData({ ...formData, is_4ps_beneficiary: !!checked })}
+                      />
+                      <label htmlFor="is_4ps" className="text-sm font-medium">4Ps Beneficiary</label>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Stethoscope className="h-4 w-4" />
+                      Health & Nutrition Data
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <Label className="font-medium">Children with Malnutrition (by age group)</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[
+                          { key: "0-11months", label: "0-11 months" },
+                          { key: "1-4years", label: "1-4 years" },
+                          { key: "5-7years", label: "5-7 years" },
+                        ].map((age) => (
+                          <div key={age.key} className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">{age.label}</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={(formData.health_data as any)?.malnutrition?.[age.key] || ""}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                health_data: {
+                                  ...(formData.health_data as any),
+                                  malnutrition: {
+                                    ...((formData.health_data as any)?.malnutrition || {}),
+                                    [age.key]: parseInt(e.target.value) || 0
+                                  }
+                                }
+                              })}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t space-y-3">
+                      <Label className="font-medium">Disability Data (by type)</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        {[
+                          { key: "physical", label: "Physical" },
+                          { key: "mental", label: "Mental" },
+                          { key: "visual", label: "Visual" },
+                          { key: "hearing", label: "Hearing" },
+                          { key: "speech", label: "Speech" },
+                        ].map((disability) => (
+                          <div key={disability.key} className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">{disability.label}</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={(formData.health_data as any)?.disability?.[disability.key] || ""}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                health_data: {
+                                  ...(formData.health_data as any),
+                                  disability: {
+                                    ...((formData.health_data as any)?.disability || {}),
+                                    [disability.key]: parseInt(e.target.value) || 0
+                                  }
+                                }
+                              })}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t space-y-3">
+                      <Label className="font-medium">Death Records (in past year)</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[
+                          { key: "infant", label: "Infant Deaths" },
+                          { key: "maternal", label: "Maternal Deaths" },
+                          { key: "other", label: "Other Deaths" },
+                        ].map((death) => (
+                          <div key={death.key} className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">{death.label}</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={(formData.health_data as any)?.deaths?.[death.key] || ""}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                health_data: {
+                                  ...(formData.health_data as any),
+                                  deaths: {
+                                    ...((formData.health_data as any)?.deaths || {}),
+                                    [death.key]: parseInt(e.target.value) || 0
+                                  }
+                                }
+                              })}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base">Additional Notes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Textarea
+                      value={formData.additional_notes}
+                      onChange={(e) => setFormData({ ...formData, additional_notes: e.target.value })}
+                      placeholder="Any additional information about your household's health, environment, or other relevant details..."
+                      rows={4}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </div>
+          </Tabs>
+
+          {/* Consent Checkbox */}
+          <div className="mt-6 pt-4 border-t">
+            <div className="flex items-start space-x-3 p-4 rounded-lg border bg-muted/50">
+              <Checkbox
+                id="consent_given"
+                checked={consentGiven}
+                onCheckedChange={(checked) => setConsentGiven(!!checked)}
+              />
+              <div className="space-y-1">
+                <label htmlFor="consent_given" className="text-sm font-medium leading-none cursor-pointer">
+                  Respondent Consent *
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  The respondent has given informed consent for this data collection as part of the Barangay Ecological Profile Census.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between mt-6 pt-4 border-t">
+            <Button variant="outline" onClick={isEditMode ? handleCancelEdit : onCancel}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {isEditMode ? "Cancel Edit" : "Cancel"}
+            </Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {isEditMode ? "Saving..." : "Submitting..."}
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  {isEditMode ? "Save Changes" : "Submit for Review"}
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default EcologicalProfileForm;
+

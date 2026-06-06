@@ -1,0 +1,445 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { useState, useEffect } from "react";
+import { useCertificateTypes } from "@/hooks/useCertificateTypes";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon, Loader2, User, ExternalLink, AlertTriangle } from "lucide-react";
+import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { logResidentCertificateRequest } from "@/utils/auditLog";
+import CertificateRequirementsGuide from "@/components/CertificateRequirementsGuide";
+
+const formSchema = z.object({
+  certificateType: z.string().min(1, "Please select a certificate type"),
+  customCertificateName: z.string().trim().max(200, "Custom certificate name is too long").optional(),
+  purpose: z.string().trim().min(10, "Please provide more details about the purpose (at least 10 characters)").max(500, "Purpose is too long"),
+  priority: z.enum(["normal", "urgent"], {
+    required_error: "Please select a priority level",
+  }),
+  urgencyReason: z.string().trim().max(500, "Urgency reason is too long").optional(),
+  preferredPickupDate: z.date({
+    required_error: "Please select your preferred pickup date",
+  }).refine((date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date >= today;
+  }, "Pickup date must be today or a future date"),
+}).refine((data) => {
+  if (data.certificateType === "Others" && (!data.customCertificateName || data.customCertificateName.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Please specify the certificate type",
+  path: ["customCertificateName"],
+}).refine((data) => {
+  if (data.priority === "urgent" && (!data.urgencyReason || data.urgencyReason.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Please provide a reason for urgency",
+  path: ["urgencyReason"],
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+interface ResidentProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  contactNumber?: string;
+  householdId?: string;
+}
+
+interface ResidentCertificateRequestFormProps {
+  profile: ResidentProfile;
+  onSuccess: (controlNumber: string) => void;
+}
+
+const ResidentCertificateRequestForm = ({ profile, onSuccess }: ResidentCertificateRequestFormProps) => {
+  const { types: certificateTypeOptions, isLoading: isLoadingTypes } = useCertificateTypes();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [householdNumber, setHouseholdNumber] = useState<string | null>(null);
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const fetchHouseholdNumber = async () => {
+      if (profile.householdId) {
+        const { data } = await supabase
+          .from("households")
+          .select("household_number")
+          .eq("id", profile.householdId)
+          .maybeSingle();
+        
+        if (data) {
+          setHouseholdNumber(data.household_number);
+        }
+      }
+    };
+    
+    fetchHouseholdNumber();
+  }, [profile.householdId]);
+  
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      certificateType: "",
+      customCertificateName: "",
+      purpose: "",
+      priority: "normal",
+      urgencyReason: "",
+    },
+  });
+
+  const selectedCertificateType = form.watch("certificateType");
+  const selectedPriority = form.watch("priority");
+
+  const generateControlNumber = (): string => {
+    const prefix = "BRG";
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${prefix}-${timestamp}-${random}`;
+  };
+
+  const onSubmit = async (data: FormValues) => {
+    if (!householdNumber) {
+      toast.error("Your household number is not set. Please update your profile first.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      const controlNumber = generateControlNumber();
+      
+      // Insert the certificate request
+      const { error } = await supabase
+        .from("certificate_requests")
+        .insert({
+          control_number: controlNumber,
+          certificate_type: data.certificateType,
+          custom_certificate_name: data.certificateType === "Others" ? (data.customCertificateName?.trim() || null) : null,
+          full_name: profile.fullName,
+          contact_number: profile.contactNumber || "",
+          email: profile.email,
+          household_number: householdNumber,
+          purpose: data.purpose,
+          priority: data.priority,
+          urgency_reason: data.priority === "urgent" ? (data.urgencyReason?.trim() || null) : null,
+          preferred_pickup_date: format(data.preferredPickupDate, "yyyy-MM-dd"),
+          status: "pending",
+          resident_id: profile.id,
+        });
+
+      if (error) throw error;
+      
+      // Log the certificate request in audit log
+      await logResidentCertificateRequest(controlNumber, profile.fullName, data.certificateType);
+      
+      // Show success
+      onSuccess(controlNumber);
+      
+      // Reset the form
+      form.reset();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Something went wrong";
+      console.error('Form submission error:', errorMessage);
+      toast.error(errorMessage, {
+        description: "Please try again or visit the barangay hall."
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isBlocked = !householdNumber;
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Pre-filled Profile Info */}
+        <div className="p-4 rounded-lg bg-muted/50 border">
+          <div className="flex items-center gap-2 mb-3">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">Your Information (from profile)</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-muted-foreground">Full Name:</span>
+              <p className="font-medium">{profile.fullName}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Email:</span>
+              <p className="font-medium">{profile.email}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Contact Number:</span>
+              <p className="font-medium">{profile.contactNumber || "Not set"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Household Number:</span>
+              <p className="font-medium">{householdNumber || "Not assigned"}</p>
+            </div>
+          </div>
+        </div>
+
+        {isBlocked && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-semibold text-destructive">Cannot Submit Certificate Request</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                You must be assigned to a household before you can request certificates. Please complete your Ecological Profile first so the barangay can verify your residency.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="lg"
+              className="gap-2"
+              onClick={() => navigate("/resident/ecological-profile")}
+            >
+              <ExternalLink className="h-4 w-4" />
+              Complete Ecological Profile
+            </Button>
+          </div>
+        )}
+
+        {/* Form fields - visually muted when blocked */}
+        <div className={cn(isBlocked && "opacity-50 pointer-events-none select-none")}>
+          {/* Certificate Type */}
+          <div className="space-y-6">
+            <FormField
+              control={form.control}
+              name="certificateType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Certificate Type / Uri ng Sertipiko *</FormLabel>
+                  <Select onValueChange={(value) => {
+                    field.onChange(value);
+                    if (value !== "Others") {
+                      form.setValue("customCertificateName", "");
+                    }
+                  }} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Select certificate type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-popover z-50">
+                      {certificateTypeOptions.map((type) => (
+                        <SelectItem key={type.id} value={type.name}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="Others">Others (Specify)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Custom Certificate Name - shown when "Others" is selected */}
+            {selectedCertificateType === "Others" && (
+              <FormField
+                control={form.control}
+                name="customCertificateName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Specify Certificate Type *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter the certificate type you need" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            <CertificateRequirementsGuide certificateType={selectedCertificateType} />
+
+            {/* Request Details Section */}
+            <div className="pt-4 border-t border-border">
+              <h3 className="text-lg font-semibold mb-4">
+                Request Details / Detalye ng Kahilingan
+              </h3>
+              
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="purpose"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Purpose / Layunin *</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Please describe the purpose of your certificate request..."
+                          className="min-h-[100px]"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Priority / Priyoridad</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-2"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="normal" />
+                            </FormControl>
+                            <FormLabel className="font-normal cursor-pointer">
+                              Normal
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="urgent" />
+                            </FormControl>
+                            <FormLabel className="font-normal cursor-pointer">
+                              Urgent
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {selectedPriority === "urgent" && (
+                  <FormField
+                    control={form.control}
+                    name="urgencyReason"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Reason for Urgency / Dahilan ng Pagmamadali *</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Please explain why this request is urgent..."
+                            className="min-h-[80px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="preferredPickupDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Preferred Pickup Date / Gustong Petsa ng Pagkuha *</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full pl-3 text-left font-normal bg-background",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 bg-popover z-50" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              const dayOfWeek = date.getDay();
+                              return date < today || dayOfWeek === 0 || dayOfWeek === 6;
+                            }}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        Select when you would like to pick up your certificate
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <Button 
+              type="submit" 
+              size="lg" 
+              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+              disabled={isSubmitting || isBlocked}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting / Isinusumite...
+                </>
+              ) : (
+                "Submit Request / Magsumite ng Kahilingan"
+              )}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </Form>
+  );
+};
+
+export default ResidentCertificateRequestForm;

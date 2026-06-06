@@ -1,0 +1,222 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Session } from "@supabase/supabase-js";
+import {
+  clearResidentForcedLogout,
+  isResidentForcedLogout,
+  markResidentForcedLogout,
+} from "@/utils/authNavigationGuard";
+
+interface ResidentProfile {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  contactNumber?: string;
+  address?: string;
+  householdId?: string;
+  birthDate?: string;
+  civilStatus?: string;
+  gender?: string;
+  occupation?: string;
+  religion?: string;
+  educationAttainment?: string;
+  employmentStatus?: string;
+  approvalStatus?: string;
+}
+
+export const useResidentAuth = () => {
+  // SYNCHRONOUSLY clear tokens before Supabase can restore them
+  if (isResidentForcedLogout()) {
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-') && key.includes('-auth-token')) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<ResidentProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        // If forced logout is active, block any session restoration
+        if (isResidentForcedLogout()) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setIsLoading(false);
+          // Silently sign out without triggering another event loop
+          if (session) {
+            setTimeout(() => supabase.auth.signOut({ scope: 'local' }), 0);
+          }
+          return;
+        }
+
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          setTimeout(() => {
+            fetchProfile(session.user.id);
+          }, 0);
+        } else {
+          setProfile(null);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (isResidentForcedLogout()) {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setIsLoading(false);
+        if (session) {
+          supabase.auth.signOut({ scope: 'local' });
+        }
+        return;
+      }
+
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    // Re-validate on browser back/forward and tab re-focus
+    const revalidateSession = () => {
+      if (isResidentForcedLogout()) {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        supabase.auth.signOut({ scope: 'local' });
+        return;
+      }
+
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (isResidentForcedLogout()) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          supabase.auth.signOut({ scope: 'local' });
+          return;
+        }
+
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (!session?.user) {
+          setProfile(null);
+        }
+      });
+    };
+
+    const handlePopState = () => revalidateSession();
+    const handlePageShow = () => revalidateSession();
+    const handleFocus = () => revalidateSession();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') revalidateSession();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("residents")
+        .select(`
+          *,
+          households (
+            id,
+            household_number,
+            address,
+            barangay,
+            city,
+            province
+          )
+        `)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (data) {
+        setProfile({
+          id: data.id,
+          userId: data.user_id || userId,
+          firstName: data.first_name || "",
+          lastName: data.last_name || "",
+          fullName: `${data.first_name} ${data.middle_name ? data.middle_name + ' ' : ''}${data.last_name}${data.suffix ? ' ' + data.suffix : ''}`.trim(),
+          email: data.email || "",
+          contactNumber: data.contact_number || undefined,
+          address: data.households 
+            ? `${data.households.address || ''}, ${data.households.barangay || ''}, ${data.households.city || ''}`
+            : undefined,
+          householdId: data.household_id || undefined,
+          birthDate: data.birth_date || undefined,
+          civilStatus: data.civil_status || undefined,
+          gender: data.gender || undefined,
+          occupation: data.occupation || undefined,
+          religion: data.religion || undefined,
+          educationAttainment: data.education_attainment || undefined,
+          employmentStatus: data.employment_status || undefined,
+          approvalStatus: data.approval_status || undefined,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    markResidentForcedLogout();
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // Ignore signout errors — forced logout flag handles protection
+    }
+    // Clear any Supabase session keys from localStorage as extra safety
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-') && key.includes('-auth-token')) {
+        localStorage.removeItem(key);
+      }
+    });
+  };
+
+  return {
+    user,
+    session,
+    profile,
+    isAuthenticated: !!user,
+    isLoading,
+    logout,
+    refetchProfile: () => user && fetchProfile(user.id),
+  };
+};

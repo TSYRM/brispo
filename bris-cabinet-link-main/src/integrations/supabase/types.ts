@@ -1,0 +1,2462 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  public: {
+    Tables: {
+      announcements: {
+        Row: {
+          content: string
+          content_tl: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          title: string
+          title_tl: string | null
+          type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          content_tl?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          title: string
+          title_tl?: string | null
+          type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          content_tl?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          title?: string
+          title_tl?: string | null
+          type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          performed_by: string
+          performed_by_type: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          performed_by: string
+          performed_by_type: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          performed_by?: string
+          performed_by_type?: string
+        }
+        Relationships: []
+      }
+      certificate_audit_trail: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          performed_by: string | null
+          request_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          request_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          request_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_audit_trail_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificate_rate_limits: {
+        Row: {
+          created_at: string | null
+          id: string
+          ip_address: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ip_address: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ip_address?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
+      certificate_requests: {
+        Row: {
+          birth_date: string | null
+          certificate_type: string
+          contact_number: string | null
+          control_number: string
+          created_at: string | null
+          custom_certificate_name: string | null
+          email: string | null
+          full_name: string
+          household_number: string | null
+          id: string
+          notes: string | null
+          preferred_pickup_date: string | null
+          priority: string | null
+          processed_by: string | null
+          purpose: string | null
+          rejection_reason: string | null
+          resident_id: string | null
+          status: string | null
+          updated_at: string | null
+          uploaded_id_url: string | null
+          urgency_reason: string | null
+        }
+        Insert: {
+          birth_date?: string | null
+          certificate_type: string
+          contact_number?: string | null
+          control_number: string
+          created_at?: string | null
+          custom_certificate_name?: string | null
+          email?: string | null
+          full_name: string
+          household_number?: string | null
+          id?: string
+          notes?: string | null
+          preferred_pickup_date?: string | null
+          priority?: string | null
+          processed_by?: string | null
+          purpose?: string | null
+          rejection_reason?: string | null
+          resident_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          uploaded_id_url?: string | null
+          urgency_reason?: string | null
+        }
+        Update: {
+          birth_date?: string | null
+          certificate_type?: string
+          contact_number?: string | null
+          control_number?: string
+          created_at?: string | null
+          custom_certificate_name?: string | null
+          email?: string | null
+          full_name?: string
+          household_number?: string | null
+          id?: string
+          notes?: string | null
+          preferred_pickup_date?: string | null
+          priority?: string | null
+          processed_by?: string | null
+          purpose?: string | null
+          rejection_reason?: string | null
+          resident_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          uploaded_id_url?: string | null
+          urgency_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_requests_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificate_templates: {
+        Row: {
+          certificate_type: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          placeholders: Json | null
+          template_content: string
+          updated_at: string | null
+        }
+        Insert: {
+          certificate_type: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          placeholders?: Json | null
+          template_content: string
+          updated_at?: string | null
+        }
+        Update: {
+          certificate_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          placeholders?: Json | null
+          template_content?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      certificate_types: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ecological_profile_submissions: {
+        Row: {
+          additional_notes: string | null
+          address: string | null
+          animals: Json | null
+          barangay: string | null
+          city: string | null
+          communication_services: Json | null
+          consent_datetime: string | null
+          created_at: string
+          death_data: Json | null
+          deleted_at: string | null
+          deleted_by: string | null
+          disability_data: Json | null
+          district: string | null
+          drainage_facilities: Json | null
+          dwelling_type: string | null
+          education_data: Json | null
+          ethnic_group: string | null
+          family_planning: Json | null
+          food_production: Json | null
+          food_storage_type: Json | null
+          garbage_disposal: Json | null
+          health_data: Json | null
+          house_number: string | null
+          house_ownership: string | null
+          household_id: string | null
+          household_members: Json | null
+          household_number: string | null
+          id: string
+          immunization_data: Json | null
+          info_sources: Json | null
+          interview_date: string | null
+          interviewer_name: string | null
+          is_4ps_beneficiary: boolean | null
+          lighting_source: string | null
+          lot_ownership: string | null
+          means_of_transport: Json | null
+          place_of_origin: string | null
+          pregnant_data: Json | null
+          province: string | null
+          pwd_count: number | null
+          rejection_reason: string | null
+          respondent_name: string | null
+          respondent_relation: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          senior_data: Json | null
+          solo_parent_count: number | null
+          staff_notes: string | null
+          status: string
+          street_purok: string | null
+          submission_number: string
+          submitted_by_resident_id: string | null
+          toilet_facilities: Json | null
+          updated_at: string
+          water_storage: Json | null
+          water_supply_level: string | null
+          years_staying: number | null
+        }
+        Insert: {
+          additional_notes?: string | null
+          address?: string | null
+          animals?: Json | null
+          barangay?: string | null
+          city?: string | null
+          communication_services?: Json | null
+          consent_datetime?: string | null
+          created_at?: string
+          death_data?: Json | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          disability_data?: Json | null
+          district?: string | null
+          drainage_facilities?: Json | null
+          dwelling_type?: string | null
+          education_data?: Json | null
+          ethnic_group?: string | null
+          family_planning?: Json | null
+          food_production?: Json | null
+          food_storage_type?: Json | null
+          garbage_disposal?: Json | null
+          health_data?: Json | null
+          house_number?: string | null
+          house_ownership?: string | null
+          household_id?: string | null
+          household_members?: Json | null
+          household_number?: string | null
+          id?: string
+          immunization_data?: Json | null
+          info_sources?: Json | null
+          interview_date?: string | null
+          interviewer_name?: string | null
+          is_4ps_beneficiary?: boolean | null
+          lighting_source?: string | null
+          lot_ownership?: string | null
+          means_of_transport?: Json | null
+          place_of_origin?: string | null
+          pregnant_data?: Json | null
+          province?: string | null
+          pwd_count?: number | null
+          rejection_reason?: string | null
+          respondent_name?: string | null
+          respondent_relation?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          senior_data?: Json | null
+          solo_parent_count?: number | null
+          staff_notes?: string | null
+          status?: string
+          street_purok?: string | null
+          submission_number: string
+          submitted_by_resident_id?: string | null
+          toilet_facilities?: Json | null
+          updated_at?: string
+          water_storage?: Json | null
+          water_supply_level?: string | null
+          years_staying?: number | null
+        }
+        Update: {
+          additional_notes?: string | null
+          address?: string | null
+          animals?: Json | null
+          barangay?: string | null
+          city?: string | null
+          communication_services?: Json | null
+          consent_datetime?: string | null
+          created_at?: string
+          death_data?: Json | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          disability_data?: Json | null
+          district?: string | null
+          drainage_facilities?: Json | null
+          dwelling_type?: string | null
+          education_data?: Json | null
+          ethnic_group?: string | null
+          family_planning?: Json | null
+          food_production?: Json | null
+          food_storage_type?: Json | null
+          garbage_disposal?: Json | null
+          health_data?: Json | null
+          house_number?: string | null
+          house_ownership?: string | null
+          household_id?: string | null
+          household_members?: Json | null
+          household_number?: string | null
+          id?: string
+          immunization_data?: Json | null
+          info_sources?: Json | null
+          interview_date?: string | null
+          interviewer_name?: string | null
+          is_4ps_beneficiary?: boolean | null
+          lighting_source?: string | null
+          lot_ownership?: string | null
+          means_of_transport?: Json | null
+          place_of_origin?: string | null
+          pregnant_data?: Json | null
+          province?: string | null
+          pwd_count?: number | null
+          rejection_reason?: string | null
+          respondent_name?: string | null
+          respondent_relation?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          senior_data?: Json | null
+          solo_parent_count?: number | null
+          staff_notes?: string | null
+          status?: string
+          street_purok?: string | null
+          submission_number?: string
+          submitted_by_resident_id?: string | null
+          toilet_facilities?: Json | null
+          updated_at?: string
+          water_storage?: Json | null
+          water_supply_level?: string | null
+          years_staying?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecological_profile_submissions_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecological_profile_submissions_submitted_by_resident_id_fkey"
+            columns: ["submitted_by_resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      health_records: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          notes: string | null
+          record_date: string | null
+          record_type: string | null
+          resident_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          notes?: string | null
+          record_date?: string | null
+          record_type?: string | null
+          resident_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          notes?: string | null
+          record_date?: string | null
+          record_type?: string | null
+          resident_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_records_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      household_link_requests: {
+        Row: {
+          created_at: string | null
+          household_id: string
+          household_number: string
+          id: string
+          reason: string | null
+          rejection_reason: string | null
+          resident_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          household_id: string
+          household_number: string
+          id?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          resident_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          household_id?: string
+          household_number?: string
+          id?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          resident_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_link_requests_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "household_link_requests_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      households: {
+        Row: {
+          address: string | null
+          barangay: string | null
+          city: string | null
+          communication_services: Json | null
+          created_at: string | null
+          district: string | null
+          drainage_facilities: Json | null
+          dwelling_type: string | null
+          ethnic_group: string | null
+          food_service: Json | null
+          food_storage_type: Json | null
+          garbage_disposal: Json | null
+          house_number: string | null
+          house_ownership: string | null
+          household_number: string
+          household_storage: Json | null
+          id: string
+          info_sources: Json | null
+          interview_date: string | null
+          lighting_source: string | null
+          lot_ownership: string | null
+          means_of_transport: Json | null
+          place_of_origin: string | null
+          province: string | null
+          street_purok: string | null
+          toilet_facilities: Json | null
+          updated_at: string | null
+          water_storage: Json | null
+          water_supply_level: string | null
+          years_staying: number | null
+        }
+        Insert: {
+          address?: string | null
+          barangay?: string | null
+          city?: string | null
+          communication_services?: Json | null
+          created_at?: string | null
+          district?: string | null
+          drainage_facilities?: Json | null
+          dwelling_type?: string | null
+          ethnic_group?: string | null
+          food_service?: Json | null
+          food_storage_type?: Json | null
+          garbage_disposal?: Json | null
+          house_number?: string | null
+          house_ownership?: string | null
+          household_number: string
+          household_storage?: Json | null
+          id?: string
+          info_sources?: Json | null
+          interview_date?: string | null
+          lighting_source?: string | null
+          lot_ownership?: string | null
+          means_of_transport?: Json | null
+          place_of_origin?: string | null
+          province?: string | null
+          street_purok?: string | null
+          toilet_facilities?: Json | null
+          updated_at?: string | null
+          water_storage?: Json | null
+          water_supply_level?: string | null
+          years_staying?: number | null
+        }
+        Update: {
+          address?: string | null
+          barangay?: string | null
+          city?: string | null
+          communication_services?: Json | null
+          created_at?: string | null
+          district?: string | null
+          drainage_facilities?: Json | null
+          dwelling_type?: string | null
+          ethnic_group?: string | null
+          food_service?: Json | null
+          food_storage_type?: Json | null
+          garbage_disposal?: Json | null
+          house_number?: string | null
+          house_ownership?: string | null
+          household_number?: string
+          household_storage?: Json | null
+          id?: string
+          info_sources?: Json | null
+          interview_date?: string | null
+          lighting_source?: string | null
+          lot_ownership?: string | null
+          means_of_transport?: Json | null
+          place_of_origin?: string | null
+          province?: string | null
+          street_purok?: string | null
+          toilet_facilities?: Json | null
+          updated_at?: string | null
+          water_storage?: Json | null
+          water_supply_level?: string | null
+          years_staying?: number | null
+        }
+        Relationships: []
+      }
+      immunization_records: {
+        Row: {
+          administered_by: string | null
+          created_at: string | null
+          date_administered: string | null
+          dose_number: number | null
+          id: string
+          notes: string | null
+          resident_id: string | null
+          updated_at: string | null
+          vaccine_name: string
+        }
+        Insert: {
+          administered_by?: string | null
+          created_at?: string | null
+          date_administered?: string | null
+          dose_number?: number | null
+          id?: string
+          notes?: string | null
+          resident_id?: string | null
+          updated_at?: string | null
+          vaccine_name: string
+        }
+        Update: {
+          administered_by?: string | null
+          created_at?: string | null
+          date_administered?: string | null
+          dose_number?: number | null
+          id?: string
+          notes?: string | null
+          resident_id?: string | null
+          updated_at?: string | null
+          vaccine_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "immunization_records_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incidents: {
+        Row: {
+          action_taken: string | null
+          approval_status: string | null
+          complainant_address: string | null
+          complainant_contact: string | null
+          complainant_name: string
+          created_at: string | null
+          handled_by: string | null
+          id: string
+          incident_date: string
+          incident_description: string
+          incident_location: string | null
+          incident_number: string
+          incident_type: string
+          photo_evidence_url: string | null
+          rejection_reason: string | null
+          reported_by: string | null
+          resolution_date: string | null
+          resolution_notes: string | null
+          respondent_address: string | null
+          respondent_name: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          submitted_by_resident_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          action_taken?: string | null
+          approval_status?: string | null
+          complainant_address?: string | null
+          complainant_contact?: string | null
+          complainant_name: string
+          created_at?: string | null
+          handled_by?: string | null
+          id?: string
+          incident_date: string
+          incident_description: string
+          incident_location?: string | null
+          incident_number: string
+          incident_type: string
+          photo_evidence_url?: string | null
+          rejection_reason?: string | null
+          reported_by?: string | null
+          resolution_date?: string | null
+          resolution_notes?: string | null
+          respondent_address?: string | null
+          respondent_name?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          submitted_by_resident_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          action_taken?: string | null
+          approval_status?: string | null
+          complainant_address?: string | null
+          complainant_contact?: string | null
+          complainant_name?: string
+          created_at?: string | null
+          handled_by?: string | null
+          id?: string
+          incident_date?: string
+          incident_description?: string
+          incident_location?: string | null
+          incident_number?: string
+          incident_type?: string
+          photo_evidence_url?: string | null
+          rejection_reason?: string | null
+          reported_by?: string | null
+          resolution_date?: string | null
+          resolution_notes?: string | null
+          respondent_address?: string | null
+          respondent_name?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          submitted_by_resident_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidents_submitted_by_resident_id_fkey"
+            columns: ["submitted_by_resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      login_attempts: {
+        Row: {
+          attempted_at: string
+          id: string
+          ip_address: string
+          success: boolean
+          username: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          id?: string
+          ip_address: string
+          success?: boolean
+          username?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          id?: string
+          ip_address?: string
+          success?: boolean
+          username?: string | null
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          parent_message_id: string | null
+          recipient_id: string
+          recipient_type: string
+          sender_id: string
+          sender_type: string
+          subject: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          parent_message_id?: string | null
+          recipient_id: string
+          recipient_type: string
+          sender_id: string
+          sender_type: string
+          subject?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          parent_message_id?: string | null
+          recipient_id?: string
+          recipient_type?: string
+          sender_id?: string
+          sender_type?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monitoring_reports: {
+        Row: {
+          age_bracket_data: Json | null
+          average_household_size: number | null
+          barangay: string | null
+          calendar_year: number | null
+          city_municipality: string | null
+          created_at: string
+          created_by: string | null
+          date_accomplished: string | null
+          id: string
+          prepared_by_name: string | null
+          province: string | null
+          region: string | null
+          sector_data: Json | null
+          semester: string | null
+          status: string
+          submitted_by_name: string | null
+          total_families: number | null
+          total_households: number | null
+          total_inhabitants: number | null
+          total_registered_voters: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          age_bracket_data?: Json | null
+          average_household_size?: number | null
+          barangay?: string | null
+          calendar_year?: number | null
+          city_municipality?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_accomplished?: string | null
+          id?: string
+          prepared_by_name?: string | null
+          province?: string | null
+          region?: string | null
+          sector_data?: Json | null
+          semester?: string | null
+          status?: string
+          submitted_by_name?: string | null
+          total_families?: number | null
+          total_households?: number | null
+          total_inhabitants?: number | null
+          total_registered_voters?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          age_bracket_data?: Json | null
+          average_household_size?: number | null
+          barangay?: string | null
+          calendar_year?: number | null
+          city_municipality?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_accomplished?: string | null
+          id?: string
+          prepared_by_name?: string | null
+          province?: string | null
+          region?: string | null
+          sector_data?: Json | null
+          semester?: string | null
+          status?: string
+          submitted_by_name?: string | null
+          total_families?: number | null
+          total_households?: number | null
+          total_inhabitants?: number | null
+          total_registered_voters?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      name_change_requests: {
+        Row: {
+          created_at: string | null
+          current_first_name: string
+          current_last_name: string
+          current_middle_name: string | null
+          current_suffix: string | null
+          id: string
+          proof_document_url: string | null
+          reason: string
+          rejection_reason: string | null
+          requested_first_name: string
+          requested_last_name: string
+          requested_middle_name: string | null
+          requested_suffix: string | null
+          resident_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_first_name: string
+          current_last_name: string
+          current_middle_name?: string | null
+          current_suffix?: string | null
+          id?: string
+          proof_document_url?: string | null
+          reason: string
+          rejection_reason?: string | null
+          requested_first_name: string
+          requested_last_name: string
+          requested_middle_name?: string | null
+          requested_suffix?: string | null
+          resident_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_first_name?: string
+          current_last_name?: string
+          current_middle_name?: string | null
+          current_suffix?: string | null
+          id?: string
+          proof_document_url?: string | null
+          reason?: string
+          rejection_reason?: string | null
+          requested_first_name?: string
+          requested_last_name?: string
+          requested_middle_name?: string | null
+          requested_suffix?: string | null
+          resident_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "name_change_requests_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      residents: {
+        Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          birth_date: string | null
+          civil_status: string | null
+          contact_number: string | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          dialects_spoken: Json | null
+          education_attainment: string | null
+          email: string | null
+          employment_category: string | null
+          employment_status: string | null
+          ethnic_group: string | null
+          first_name: string
+          gender: string | null
+          household_id: string | null
+          id: string
+          is_head_of_household: boolean | null
+          last_name: string
+          livelihood_training: string | null
+          middle_name: string | null
+          monthly_income_cash: string | null
+          monthly_income_kind: string | null
+          occupation: string | null
+          place_of_origin: string | null
+          privacy_consent_given_at: string | null
+          relation_to_head: string | null
+          religion: string | null
+          schooling_status: string | null
+          suffix: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          birth_date?: string | null
+          civil_status?: string | null
+          contact_number?: string | null
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          dialects_spoken?: Json | null
+          education_attainment?: string | null
+          email?: string | null
+          employment_category?: string | null
+          employment_status?: string | null
+          ethnic_group?: string | null
+          first_name: string
+          gender?: string | null
+          household_id?: string | null
+          id?: string
+          is_head_of_household?: boolean | null
+          last_name: string
+          livelihood_training?: string | null
+          middle_name?: string | null
+          monthly_income_cash?: string | null
+          monthly_income_kind?: string | null
+          occupation?: string | null
+          place_of_origin?: string | null
+          privacy_consent_given_at?: string | null
+          relation_to_head?: string | null
+          religion?: string | null
+          schooling_status?: string | null
+          suffix?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          birth_date?: string | null
+          civil_status?: string | null
+          contact_number?: string | null
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          dialects_spoken?: Json | null
+          education_attainment?: string | null
+          email?: string | null
+          employment_category?: string | null
+          employment_status?: string | null
+          ethnic_group?: string | null
+          first_name?: string
+          gender?: string | null
+          household_id?: string | null
+          id?: string
+          is_head_of_household?: boolean | null
+          last_name?: string
+          livelihood_training?: string | null
+          middle_name?: string | null
+          monthly_income_cash?: string | null
+          monthly_income_kind?: string | null
+          occupation?: string | null
+          place_of_origin?: string | null
+          privacy_consent_given_at?: string | null
+          relation_to_head?: string | null
+          religion?: string | null
+          schooling_status?: string | null
+          suffix?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "residents_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          staff_user_id: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          staff_user_id?: string | null
+          token: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          staff_user_id?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_staff_user_id_fkey"
+            columns: ["staff_user_id"]
+            isOneToOne: false
+            referencedRelation: "staff_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_users: {
+        Row: {
+          created_at: string | null
+          full_name: string
+          id: string
+          is_active: boolean | null
+          password_hash: string
+          role: string | null
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean | null
+          password_hash: string
+          role?: string | null
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean | null
+          password_hash?: string
+          role?: string | null
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      apply_ecological_submission_to_household: {
+        Args: { p_submission_id: string }
+        Returns: string
+      }
+      check_certificate_rate_limit: {
+        Args: { p_ip_address: string }
+        Returns: {
+          allowed: boolean
+          remaining_requests: number
+          retry_after_seconds: number
+        }[]
+      }
+      check_login_rate_limit: {
+        Args: { p_ip_address: string }
+        Returns: number
+      }
+      check_registration_status: {
+        Args: { p_email: string }
+        Returns: {
+          approved_at: string
+          approved_by: string
+          first_name: string
+          last_name: string
+          status: string
+          submitted_at: string
+        }[]
+      }
+      check_tracking_rate_limit: {
+        Args: { p_ip_address: string }
+        Returns: {
+          allowed: boolean
+          retry_after_seconds: number
+        }[]
+      }
+      create_audit_log: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_entity_id?: string
+          p_entity_type: string
+        }
+        Returns: undefined
+      }
+      generate_ecological_submission_number: { Args: never; Returns: string }
+      get_active_announcements: {
+        Args: never
+        Returns: {
+          content: string
+          content_tl: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          title: string
+          title_tl: string | null
+          type: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "announcements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_all_announcements_for_staff: {
+        Args: never
+        Returns: {
+          content: string
+          content_tl: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          title: string
+          title_tl: string | null
+          type: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "announcements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_all_certificate_requests_for_staff: {
+        Args: { p_status_filter?: string }
+        Returns: {
+          birth_date: string | null
+          certificate_type: string
+          contact_number: string | null
+          control_number: string
+          created_at: string | null
+          custom_certificate_name: string | null
+          email: string | null
+          full_name: string
+          household_number: string | null
+          id: string
+          notes: string | null
+          preferred_pickup_date: string | null
+          priority: string | null
+          processed_by: string | null
+          purpose: string | null
+          rejection_reason: string | null
+          resident_id: string | null
+          status: string | null
+          updated_at: string | null
+          uploaded_id_url: string | null
+          urgency_reason: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "certificate_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_all_ecological_submissions_for_staff: {
+        Args: { p_include_deleted?: boolean; p_status?: string }
+        Returns: {
+          additional_notes: string | null
+          address: string | null
+          animals: Json | null
+          barangay: string | null
+          city: string | null
+          communication_services: Json | null
+          consent_datetime: string | null
+          created_at: string
+          death_data: Json | null
+          deleted_at: string | null
+          deleted_by: string | null
+          disability_data: Json | null
+          district: string | null
+          drainage_facilities: Json | null
+          dwelling_type: string | null
+          education_data: Json | null
+          ethnic_group: string | null
+          family_planning: Json | null
+          food_production: Json | null
+          food_storage_type: Json | null
+          garbage_disposal: Json | null
+          health_data: Json | null
+          house_number: string | null
+          house_ownership: string | null
+          household_id: string | null
+          household_members: Json | null
+          household_number: string | null
+          id: string
+          immunization_data: Json | null
+          info_sources: Json | null
+          interview_date: string | null
+          interviewer_name: string | null
+          is_4ps_beneficiary: boolean | null
+          lighting_source: string | null
+          lot_ownership: string | null
+          means_of_transport: Json | null
+          place_of_origin: string | null
+          pregnant_data: Json | null
+          province: string | null
+          pwd_count: number | null
+          rejection_reason: string | null
+          respondent_name: string | null
+          respondent_relation: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          senior_data: Json | null
+          solo_parent_count: number | null
+          staff_notes: string | null
+          status: string
+          street_purok: string | null
+          submission_number: string
+          submitted_by_resident_id: string | null
+          toilet_facilities: Json | null
+          updated_at: string
+          water_storage: Json | null
+          water_supply_level: string | null
+          years_staying: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ecological_profile_submissions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_all_households_for_staff: {
+        Args: never
+        Returns: {
+          address: string | null
+          barangay: string | null
+          city: string | null
+          communication_services: Json | null
+          created_at: string | null
+          district: string | null
+          drainage_facilities: Json | null
+          dwelling_type: string | null
+          ethnic_group: string | null
+          food_service: Json | null
+          food_storage_type: Json | null
+          garbage_disposal: Json | null
+          house_number: string | null
+          house_ownership: string | null
+          household_number: string
+          household_storage: Json | null
+          id: string
+          info_sources: Json | null
+          interview_date: string | null
+          lighting_source: string | null
+          lot_ownership: string | null
+          means_of_transport: Json | null
+          place_of_origin: string | null
+          province: string | null
+          street_purok: string | null
+          toilet_facilities: Json | null
+          updated_at: string | null
+          water_storage: Json | null
+          water_supply_level: string | null
+          years_staying: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "households"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_all_incidents_for_staff: {
+        Args: { p_approval_status?: string; p_status?: string }
+        Returns: {
+          action_taken: string | null
+          approval_status: string | null
+          complainant_address: string | null
+          complainant_contact: string | null
+          complainant_name: string
+          created_at: string | null
+          handled_by: string | null
+          id: string
+          incident_date: string
+          incident_description: string
+          incident_location: string | null
+          incident_number: string
+          incident_type: string
+          photo_evidence_url: string | null
+          rejection_reason: string | null
+          reported_by: string | null
+          resolution_date: string | null
+          resolution_notes: string | null
+          respondent_address: string | null
+          respondent_name: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          submitted_by_resident_id: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "incidents"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_all_residents_for_staff: {
+        Args: never
+        Returns: {
+          birth_date: string
+          civil_status: string
+          contact_number: string
+          created_at: string
+          dialects_spoken: Json
+          education_attainment: string
+          email: string
+          employment_category: string
+          employment_status: string
+          ethnic_group: string
+          first_name: string
+          gender: string
+          household_address: string
+          household_barangay: string
+          household_city: string
+          household_district: string
+          household_dwelling_type: string
+          household_ethnic_group: string
+          household_house_number: string
+          household_house_ownership: string
+          household_id: string
+          household_lighting_source: string
+          household_lot_ownership: string
+          household_number: string
+          household_place_of_origin: string
+          household_province: string
+          household_street_purok: string
+          household_water_supply_level: string
+          household_years_staying: number
+          id: string
+          is_head_of_household: boolean
+          last_name: string
+          livelihood_training: string
+          middle_name: string
+          monthly_income_cash: string
+          monthly_income_kind: string
+          occupation: string
+          place_of_origin: string
+          relation_to_head: string
+          religion: string
+          schooling_status: string
+          suffix: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
+      get_deleted_residents_for_staff: {
+        Args: never
+        Returns: {
+          contact_number: string
+          deleted_at: string
+          deleted_by: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          middle_name: string
+          suffix: string
+        }[]
+      }
+      get_duplicate_resident_hints: {
+        Args: {
+          p_address?: string
+          p_birth_date?: string
+          p_first_name: string
+          p_last_name: string
+        }
+        Returns: {
+          approval_status: string
+          birth_date: string
+          contact_number: string
+          email: string
+          first_name: string
+          household_address: string
+          household_id: string
+          household_number: string
+          id: string
+          last_name: string
+          match_score: number
+          middle_name: string
+        }[]
+      }
+      get_ecological_submission_by_household: {
+        Args: { p_household_number: string }
+        Returns: {
+          additional_notes: string | null
+          address: string | null
+          animals: Json | null
+          barangay: string | null
+          city: string | null
+          communication_services: Json | null
+          consent_datetime: string | null
+          created_at: string
+          death_data: Json | null
+          deleted_at: string | null
+          deleted_by: string | null
+          disability_data: Json | null
+          district: string | null
+          drainage_facilities: Json | null
+          dwelling_type: string | null
+          education_data: Json | null
+          ethnic_group: string | null
+          family_planning: Json | null
+          food_production: Json | null
+          food_storage_type: Json | null
+          garbage_disposal: Json | null
+          health_data: Json | null
+          house_number: string | null
+          house_ownership: string | null
+          household_id: string | null
+          household_members: Json | null
+          household_number: string | null
+          id: string
+          immunization_data: Json | null
+          info_sources: Json | null
+          interview_date: string | null
+          interviewer_name: string | null
+          is_4ps_beneficiary: boolean | null
+          lighting_source: string | null
+          lot_ownership: string | null
+          means_of_transport: Json | null
+          place_of_origin: string | null
+          pregnant_data: Json | null
+          province: string | null
+          pwd_count: number | null
+          rejection_reason: string | null
+          respondent_name: string | null
+          respondent_relation: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          senior_data: Json | null
+          solo_parent_count: number | null
+          staff_notes: string | null
+          status: string
+          street_purok: string | null
+          submission_number: string
+          submitted_by_resident_id: string | null
+          toilet_facilities: Json | null
+          updated_at: string
+          water_storage: Json | null
+          water_supply_level: string | null
+          years_staying: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ecological_profile_submissions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_household_link_requests_for_staff: {
+        Args: { p_status?: string }
+        Returns: {
+          created_at: string
+          household_address: string
+          household_id: string
+          household_number: string
+          id: string
+          reason: string
+          rejection_reason: string
+          resident_contact: string
+          resident_email: string
+          resident_id: string
+          resident_name: string
+          reviewed_at: string
+          reviewed_by: string
+          status: string
+        }[]
+      }
+      get_households_paginated_for_staff: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_purok_filter?: string
+          p_search?: string
+        }
+        Returns: {
+          address: string
+          barangay: string
+          city: string
+          created_at: string
+          district: string
+          dwelling_type: string
+          ethnic_group: string
+          house_number: string
+          house_ownership: string
+          household_number: string
+          id: string
+          lighting_source: string
+          lot_ownership: string
+          place_of_origin: string
+          province: string
+          street_purok: string
+          total_count: number
+          updated_at: string
+          water_supply_level: string
+          years_staying: number
+        }[]
+      }
+      get_incidents_for_staff: {
+        Args: { p_status_filter?: string }
+        Returns: {
+          action_taken: string | null
+          approval_status: string | null
+          complainant_address: string | null
+          complainant_contact: string | null
+          complainant_name: string
+          created_at: string | null
+          handled_by: string | null
+          id: string
+          incident_date: string
+          incident_description: string
+          incident_location: string | null
+          incident_number: string
+          incident_type: string
+          photo_evidence_url: string | null
+          rejection_reason: string | null
+          reported_by: string | null
+          resolution_date: string | null
+          resolution_notes: string | null
+          respondent_address: string | null
+          respondent_name: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          submitted_by_resident_id: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "incidents"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_name_change_requests_for_staff: {
+        Args: { p_status?: string }
+        Returns: {
+          created_at: string
+          current_first_name: string
+          current_last_name: string
+          current_middle_name: string
+          current_suffix: string
+          id: string
+          proof_document_url: string
+          reason: string
+          rejection_reason: string
+          requested_first_name: string
+          requested_last_name: string
+          requested_middle_name: string
+          requested_suffix: string
+          resident_contact: string
+          resident_email: string
+          resident_id: string
+          reviewed_at: string
+          reviewed_by: string
+          status: string
+        }[]
+      }
+      get_pending_certificate_requests_count: { Args: never; Returns: number }
+      get_pending_ecological_submissions_count: { Args: never; Returns: number }
+      get_pending_household_link_requests_count: {
+        Args: never
+        Returns: number
+      }
+      get_pending_incidents_count: { Args: never; Returns: number }
+      get_pending_name_change_requests_count: { Args: never; Returns: number }
+      get_pending_registration_count: { Args: never; Returns: number }
+      get_pending_registrations: {
+        Args: never
+        Returns: {
+          approval_status: string
+          birth_date: string
+          contact_number: string
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          middle_name: string
+          place_of_origin: string
+        }[]
+      }
+      get_pending_requests: {
+        Args: never
+        Returns: {
+          birth_date: string | null
+          certificate_type: string
+          contact_number: string | null
+          control_number: string
+          created_at: string | null
+          custom_certificate_name: string | null
+          email: string | null
+          full_name: string
+          household_number: string | null
+          id: string
+          notes: string | null
+          preferred_pickup_date: string | null
+          priority: string | null
+          processed_by: string | null
+          purpose: string | null
+          rejection_reason: string | null
+          resident_id: string | null
+          status: string | null
+          updated_at: string | null
+          uploaded_id_url: string | null
+          urgency_reason: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "certificate_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_resident_count: { Args: never; Returns: number }
+      get_resident_household_link_requests: {
+        Args: { p_user_id: string }
+        Returns: {
+          created_at: string
+          household_address: string
+          household_number: string
+          id: string
+          reason: string
+          rejection_reason: string
+          reviewed_at: string
+          status: string
+        }[]
+      }
+      get_resident_names_by_user_ids: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
+      get_resident_unread_message_count: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      get_residents_for_messaging_staff: {
+        Args: { p_staff_id: string }
+        Returns: {
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
+      get_staff_for_messaging: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+          role: string
+        }[]
+      }
+      get_staff_messages: {
+        Args: { p_staff_id: string }
+        Returns: {
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          parent_message_id: string
+          recipient_id: string
+          recipient_type: string
+          sender_id: string
+          sender_type: string
+          subject: string
+        }[]
+      }
+      get_staff_unread_message_count: {
+        Args: { p_staff_id: string }
+        Returns: number
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      link_resident_to_user: {
+        Args: { p_email: string; p_user_id: string }
+        Returns: boolean
+      }
+      record_login_attempt: {
+        Args: { p_ip_address: string; p_success: boolean; p_username: string }
+        Returns: undefined
+      }
+      recover_ecological_submission: {
+        Args: { p_submission_id: string }
+        Returns: boolean
+      }
+      register_new_resident: {
+        Args: {
+          p_address: string
+          p_birth_date: string
+          p_contact_number: string
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_middle_name: string
+        }
+        Returns: string
+      }
+      resident_link_to_household: {
+        Args: { p_household_number: string; p_user_id: string }
+        Returns: Json
+      }
+      resident_request_household_link: {
+        Args: {
+          p_household_number: string
+          p_reason?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      review_ecological_submission: {
+        Args: {
+          p_rejection_reason?: string
+          p_reviewed_by: string
+          p_staff_notes?: string
+          p_status: string
+          p_submission_id: string
+        }
+        Returns: boolean
+      }
+      search_residents_for_certificate: {
+        Args: { p_query: string }
+        Returns: {
+          contact_number: string
+          email: string
+          first_name: string
+          household_id: string
+          household_number: string
+          id: string
+          last_name: string
+          middle_name: string
+          suffix: string
+        }[]
+      }
+      soft_delete_ecological_submission: {
+        Args: { p_deleted_by: string; p_submission_id: string }
+        Returns: boolean
+      }
+      staff_approve_household_link: {
+        Args: { p_approved_by: string; p_request_id: string }
+        Returns: undefined
+      }
+      staff_approve_incident: {
+        Args: { p_incident_id: string; p_reviewed_by: string }
+        Returns: undefined
+      }
+      staff_approve_name_change: {
+        Args: { p_request_id: string; p_reviewed_by: string }
+        Returns: undefined
+      }
+      staff_approve_resident: {
+        Args: { p_approved_by: string; p_resident_id: string }
+        Returns: undefined
+      }
+      staff_create_announcement: {
+        Args: {
+          p_content: string
+          p_content_tl?: string
+          p_created_by?: string
+          p_title: string
+          p_title_tl?: string
+          p_type?: string
+        }
+        Returns: {
+          content: string
+          content_tl: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          title: string
+          title_tl: string | null
+          type: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "announcements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      staff_create_household: {
+        Args: {
+          p_address?: string
+          p_barangay?: string
+          p_city?: string
+          p_district?: string
+          p_dwelling_type?: string
+          p_ethnic_group?: string
+          p_house_number?: string
+          p_house_ownership?: string
+          p_household_number: string
+          p_lighting_source?: string
+          p_lot_ownership?: string
+          p_place_of_origin?: string
+          p_province?: string
+          p_street_purok?: string
+          p_water_supply_level?: string
+          p_years_staying?: number
+        }
+        Returns: string
+      }
+      staff_create_incident: {
+        Args: {
+          p_action_taken?: string
+          p_complainant_address?: string
+          p_complainant_contact?: string
+          p_complainant_name: string
+          p_incident_date: string
+          p_incident_description?: string
+          p_incident_location?: string
+          p_incident_type: string
+          p_reported_by?: string
+          p_respondent_address?: string
+          p_respondent_name?: string
+        }
+        Returns: string
+      }
+      staff_delete_announcement: { Args: { p_id: string }; Returns: undefined }
+      staff_delete_household: {
+        Args: { p_household_id: string }
+        Returns: Json
+      }
+      staff_delete_resident: {
+        Args: { p_resident_id: string }
+        Returns: undefined
+      }
+      staff_mark_message_read: {
+        Args: { p_message_id: string; p_staff_id: string }
+        Returns: undefined
+      }
+      staff_reject_household_link: {
+        Args: {
+          p_rejected_by: string
+          p_rejection_reason: string
+          p_request_id: string
+        }
+        Returns: undefined
+      }
+      staff_reject_incident: {
+        Args: {
+          p_incident_id: string
+          p_rejection_reason: string
+          p_reviewed_by: string
+        }
+        Returns: undefined
+      }
+      staff_reject_name_change: {
+        Args: {
+          p_rejection_reason: string
+          p_request_id: string
+          p_reviewed_by: string
+        }
+        Returns: undefined
+      }
+      staff_reject_resident: {
+        Args: {
+          p_rejected_by: string
+          p_rejection_reason: string
+          p_resident_id: string
+        }
+        Returns: undefined
+      }
+      staff_restore_resident: {
+        Args: { p_resident_id: string }
+        Returns: undefined
+      }
+      staff_save_ecological_census:
+        | {
+            Args: {
+              p_additional_notes?: string
+              p_address?: string
+              p_animals?: Json
+              p_barangay?: string
+              p_city?: string
+              p_communication_services?: Json
+              p_death_data?: Json
+              p_disability_data?: Json
+              p_district?: string
+              p_drainage_facilities?: Json
+              p_dwelling_type?: string
+              p_education_data?: Json
+              p_ethnic_group?: string
+              p_family_planning?: Json
+              p_food_production?: Json
+              p_food_storage_type?: Json
+              p_garbage_disposal?: Json
+              p_health_data?: Json
+              p_house_number?: string
+              p_house_ownership?: string
+              p_household_id: string
+              p_household_members?: Json
+              p_household_number: string
+              p_immunization_data?: Json
+              p_info_sources?: Json
+              p_interview_date?: string
+              p_is_4ps_beneficiary?: boolean
+              p_lighting_source?: string
+              p_lot_ownership?: string
+              p_means_of_transport?: Json
+              p_place_of_origin?: string
+              p_pregnant_data?: Json
+              p_province?: string
+              p_pwd_count?: number
+              p_respondent_name?: string
+              p_respondent_relation?: string
+              p_senior_data?: Json
+              p_solo_parent_count?: number
+              p_staff_id?: string
+              p_street_purok?: string
+              p_toilet_facilities?: Json
+              p_water_storage?: Json
+              p_water_supply_level?: string
+              p_years_staying?: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_additional_notes?: string
+              p_address?: string
+              p_animals?: Json
+              p_barangay?: string
+              p_city?: string
+              p_communication_services?: Json
+              p_consent_datetime?: string
+              p_death_data?: Json
+              p_disability_data?: Json
+              p_district?: string
+              p_drainage_facilities?: Json
+              p_dwelling_type?: string
+              p_education_data?: Json
+              p_ethnic_group?: string
+              p_family_planning?: Json
+              p_food_production?: Json
+              p_food_storage_type?: Json
+              p_garbage_disposal?: Json
+              p_health_data?: Json
+              p_house_number?: string
+              p_house_ownership?: string
+              p_household_id: string
+              p_household_members?: Json
+              p_household_number: string
+              p_immunization_data?: Json
+              p_info_sources?: Json
+              p_interview_date?: string
+              p_interviewer_name?: string
+              p_is_4ps_beneficiary?: boolean
+              p_lighting_source?: string
+              p_lot_ownership?: string
+              p_means_of_transport?: Json
+              p_place_of_origin?: string
+              p_pregnant_data?: Json
+              p_province?: string
+              p_pwd_count?: number
+              p_respondent_name?: string
+              p_respondent_relation?: string
+              p_senior_data?: Json
+              p_solo_parent_count?: number
+              p_staff_id?: string
+              p_street_purok?: string
+              p_toilet_facilities?: Json
+              p_water_storage?: Json
+              p_water_supply_level?: string
+              p_years_staying?: number
+            }
+            Returns: string
+          }
+      staff_send_new_message: {
+        Args: {
+          p_content: string
+          p_recipient_user_id: string
+          p_staff_id: string
+          p_subject: string
+        }
+        Returns: string
+      }
+      staff_send_reply: {
+        Args: {
+          p_content: string
+          p_parent_message_id: string
+          p_recipient_id: string
+          p_staff_id: string
+          p_subject: string
+        }
+        Returns: string
+      }
+      staff_update_announcement: {
+        Args: {
+          p_content?: string
+          p_content_tl?: string
+          p_id: string
+          p_is_active?: boolean
+          p_title?: string
+          p_title_tl?: string
+          p_type?: string
+        }
+        Returns: undefined
+      }
+      staff_update_household: {
+        Args: {
+          p_address?: string
+          p_barangay?: string
+          p_city?: string
+          p_district?: string
+          p_dwelling_type?: string
+          p_ethnic_group?: string
+          p_house_number?: string
+          p_house_ownership?: string
+          p_household_id: string
+          p_household_number?: string
+          p_lighting_source?: string
+          p_lot_ownership?: string
+          p_place_of_origin?: string
+          p_province?: string
+          p_street_purok?: string
+          p_water_supply_level?: string
+          p_years_staying?: number
+        }
+        Returns: undefined
+      }
+      staff_update_incident_status: {
+        Args: { p_handled_by: string; p_incident_id: string; p_status: string }
+        Returns: undefined
+      }
+      staff_update_request_status: {
+        Args: {
+          p_notes?: string
+          p_processed_by: string
+          p_request_id: string
+          p_status: string
+        }
+        Returns: {
+          birth_date: string | null
+          certificate_type: string
+          contact_number: string | null
+          control_number: string
+          created_at: string | null
+          custom_certificate_name: string | null
+          email: string | null
+          full_name: string
+          household_number: string | null
+          id: string
+          notes: string | null
+          preferred_pickup_date: string | null
+          priority: string | null
+          processed_by: string | null
+          purpose: string | null
+          rejection_reason: string | null
+          resident_id: string | null
+          status: string | null
+          updated_at: string | null
+          uploaded_id_url: string | null
+          urgency_reason: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "certificate_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      track_certificate_request: {
+        Args: { p_control_number: string }
+        Returns: {
+          certificate_type: string
+          control_number: string
+          created_at: string
+          full_name: string
+          id: string
+          notes: string
+          purpose: string
+          rejection_reason: string
+          status: string
+          updated_at: string
+        }[]
+      }
+      validate_session: {
+        Args: { session_token: string }
+        Returns: {
+          full_name: string
+          role: string
+          staff_user_id: string
+          username: string
+        }[]
+      }
+      verify_resident_and_get_id: {
+        Args: {
+          p_birth_date: string
+          p_full_name: string
+          p_household_number: string
+        }
+        Returns: string
+      }
+      verify_resident_exists: {
+        Args: {
+          p_birth_date: string
+          p_full_name: string
+          p_household_number: string
+        }
+        Returns: boolean
+      }
+    }
+    Enums: {
+      app_role: "admin" | "staff" | "user"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["admin", "staff", "user"],
+    },
+  },
+} as const
