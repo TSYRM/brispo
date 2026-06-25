@@ -99,7 +99,7 @@ const ViewReportsTab = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
-  const [analyticsCategory, setAnalyticsCategory] = useState("all");
+  const [analyticsCategory, setAnalyticsCategory] = useState("incidents");
   
   // Date range filter state
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -416,31 +416,23 @@ const ViewReportsTab = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* ── Analytics Category Filter ── */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {(["all", "incidents", "certificates", "residents", "household"] as const).map((cat) => {
-            const labels: Record<string, { label: string; icon: React.ReactNode }> = {
-              all: { label: "All", icon: <BarChart3 className="h-4 w-4" /> },
-              incidents: { label: "Incidents", icon: <ShieldAlert className="h-4 w-4" /> },
-              certificates: { label: "Certificates", icon: <FileText className="h-4 w-4" /> },
-              residents: { label: "Residents", icon: <Users className="h-4 w-4" /> },
-              household: { label: "Household", icon: <Home className="h-4 w-4" /> },
-            };
-            const { label, icon } = labels[cat];
-            return (
-              <Button
-                key={cat}
-                variant={analyticsCategory === cat ? "default" : "outline"}
-                size="sm"
-                onClick={() => setAnalyticsCategory(cat)}
-                className="gap-1.5"
-              >
-                {icon}
-                {label}
-              </Button>
-            );
-          })}
-        </div>
+        {/* ── Analytics Category Tabs ── */}
+        <Tabs value={analyticsCategory} onValueChange={(v) => setAnalyticsCategory(v as typeof analyticsCategory)} className="mb-6">
+          <TabsList className="flex flex-wrap h-auto gap-1">
+            <TabsTrigger value="incidents" className="gap-1.5">
+              <ShieldAlert className="h-4 w-4" /> Incidents
+            </TabsTrigger>
+            <TabsTrigger value="certificates" className="gap-1.5">
+              <FileText className="h-4 w-4" /> Certificates
+            </TabsTrigger>
+            <TabsTrigger value="residents" className="gap-1.5">
+              <Users className="h-4 w-4" /> Residents
+            </TabsTrigger>
+            <TabsTrigger value="household" className="gap-1.5">
+              <Home className="h-4 w-4" /> Household
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* ── Section 1: Overview ── */}
         <div className="mb-8">
@@ -449,23 +441,23 @@ const ViewReportsTab = () => {
             Overview
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(analyticsCategory === "all" || analyticsCategory === "residents") && (
+            {analyticsCategory === "residents" && (
               <OverviewStatCard label="Total Residents" value={totalResidents} icon={<Users className="h-5 w-5 text-primary" />} />
             )}
-            {(analyticsCategory === "all" || analyticsCategory === "household") && (
+            {analyticsCategory === "household" && (
               <OverviewStatCard label="Total Households" value={totalHouseholds} icon={<Home className="h-5 w-5 text-primary" />} />
             )}
-            {(analyticsCategory === "all" || analyticsCategory === "incidents") && (
+            {analyticsCategory === "incidents" && (
               <OverviewStatCard label="Total Incidents (This Year)" value={incidentSummary.total} icon={<ShieldAlert className="h-5 w-5 text-destructive" />} />
             )}
-            {(analyticsCategory === "all" || analyticsCategory === "certificates") && (
+            {analyticsCategory === "certificates" && (
               <OverviewStatCard label="Certificate Requests (This Month)" value={certificatesThisMonth} icon={<FileText className="h-5 w-5 text-primary" />} />
             )}
           </div>
         </div>
 
         {/* ── Section 2: Incident Analytics ── */}
-        {(analyticsCategory === "all" || analyticsCategory === "incidents") && (
+        {analyticsCategory === "incidents" && (
           <>
             <Separator className="mb-8" />
             <div className="mb-8">
@@ -528,12 +520,12 @@ const ViewReportsTab = () => {
         )}
 
         {/* ── Section 3: Population & Household Analytics ── */}
-        {(analyticsCategory === "all" || analyticsCategory === "residents" || analyticsCategory === "household") && (
+        {(analyticsCategory === "residents" || analyticsCategory === "household") && (
           <>
             <Separator className="mb-8" />
             <div className="mb-8">
               {/* Residents */}
-              {(analyticsCategory === "all" || analyticsCategory === "residents") && (
+              {analyticsCategory === "residents" && (
                 <div className="mb-8">
                   <div className="flex flex-col gap-3 mb-4">
                     <div className="flex items-center justify-between flex-wrap gap-2">
@@ -580,7 +572,7 @@ const ViewReportsTab = () => {
               )}
 
               {/* Household */}
-              {(analyticsCategory === "all" || analyticsCategory === "household") && (
+              {analyticsCategory === "household" && (
                 <div>
                   <div className="flex flex-col gap-3 mb-4">
                     <div className="flex items-center justify-between flex-wrap gap-2">
@@ -629,7 +621,7 @@ const ViewReportsTab = () => {
         )}
 
         {/* ── Section 4: Certificate Services Analytics ── */}
-        {(analyticsCategory === "all" || analyticsCategory === "certificates") && (
+        {analyticsCategory === "certificates" && (
           <>
             <Separator className="mb-8" />
             <div className="mb-8">
