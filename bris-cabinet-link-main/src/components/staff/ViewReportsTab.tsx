@@ -264,9 +264,18 @@ const ViewReportsTab = () => {
 
   // Year filter (report list)
   const [yearFilter, setYearFilter] = useState<string>("all");
-  // Analytics chart filters
+  // Incident analytics filters
   const [analyticsYearFilter, setAnalyticsYearFilter] = useState<string>("all");
   const [analyticsPreset, setAnalyticsPreset] = useState<string>("all");
+  // Certificate analytics filters
+  const [certYearFilter, setCertYearFilter] = useState<string>("all");
+  const [certPreset, setCertPreset] = useState<string>("all");
+  // Residents analytics filters
+  const [residentYearFilter, setResidentYearFilter] = useState<string>("all");
+  const [residentPreset, setResidentPreset] = useState<string>("all");
+  // Household analytics filters
+  const [householdYearFilter, setHouseholdYearFilter] = useState<string>("all");
+  const [householdPreset, setHouseholdPreset] = useState<string>("all");
 
   const incidentYearCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -277,9 +286,45 @@ const ViewReportsTab = () => {
     return Object.entries(counts).sort((a, b) => Number(b[0]) - Number(a[0]));
   }, [incidents]);
 
+  const certYearCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    certificates.forEach(c => {
+      const year = c.createdAt ? new Date(c.createdAt).getFullYear().toString() : "";
+      if (year) counts[year] = (counts[year] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => Number(b[0]) - Number(a[0]));
+  }, [certificates]);
+
   const handleAnalyticsPreset = (preset: string) => {
     setAnalyticsPreset(preset);
     setAnalyticsYearFilter("all");
+  };
+
+  const handleCertPreset = (preset: string) => {
+    setCertPreset(preset);
+    setCertYearFilter("all");
+  };
+  const handleCertYear = (year: string) => {
+    setCertYearFilter(year);
+    setCertPreset("all");
+  };
+
+  const handleResidentPreset = (preset: string) => {
+    setResidentPreset(preset);
+    setResidentYearFilter("all");
+  };
+  const handleResidentYear = (year: string) => {
+    setResidentYearFilter(year);
+    setResidentPreset("all");
+  };
+
+  const handleHouseholdPreset = (preset: string) => {
+    setHouseholdPreset(preset);
+    setHouseholdYearFilter("all");
+  };
+  const handleHouseholdYear = (year: string) => {
+    setHouseholdYearFilter(year);
+    setHouseholdPreset("all");
   };
 
   const handleAnalyticsYear = (year: string) => {
@@ -304,6 +349,24 @@ const ViewReportsTab = () => {
     }
     return result;
   }, [incidents, analyticsYearFilter, analyticsPreset]);
+
+  const analyticsCertificates = useMemo(() => {
+    let result = certificates;
+    if (certYearFilter !== "all") {
+      result = result.filter(c => c.createdAt && new Date(c.createdAt).getFullYear().toString() === certYearFilter);
+    } else if (certPreset !== "all") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      let cutoff = new Date(today);
+      if (certPreset === "3d") cutoff.setDate(cutoff.getDate() - 3);
+      else if (certPreset === "7d") cutoff.setDate(cutoff.getDate() - 7);
+      else if (certPreset === "30d") cutoff.setDate(cutoff.getDate() - 30);
+      else if (certPreset === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
+      else if (certPreset === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
+      result = result.filter(c => c.createdAt && new Date(c.createdAt) >= cutoff);
+    }
+    return result;
+  }, [certificates, certYearFilter, certPreset]);
 
   const filteredIncidents = incidents.filter(i => {
     const matchesSearch =
@@ -469,19 +532,96 @@ const ViewReportsTab = () => {
           <>
             <Separator className="mb-8" />
             <div className="mb-8">
-              <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-                <Users className="h-5 w-5 text-primary" />
-                Population &amp; Household Analytics
-              </h3>
+              {/* Residents */}
               {(analyticsCategory === "all" || analyticsCategory === "residents") && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                  <ResidentAgeBracketChart />
-                  <ResidentsPerPurokChart />
+                <div className="mb-8">
+                  <div className="flex flex-col gap-3 mb-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        Resident Analytics
+                      </h3>
+                      <Select value={residentYearFilter} onValueChange={handleResidentYear}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Filter by year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Years</SelectItem>
+                          <SelectItem value={new Date().getFullYear().toString()}>{new Date().getFullYear()}</SelectItem>
+                          <SelectItem value={(new Date().getFullYear() - 1).toString()}>{new Date().getFullYear() - 1}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: "All Time", value: "all" },
+                        { label: "Last 3 Days", value: "3d" },
+                        { label: "Last 7 Days", value: "7d" },
+                        { label: "Last 30 Days", value: "30d" },
+                        { label: "Last 3 Months", value: "3m" },
+                        { label: "Last 6 Months", value: "6m" },
+                      ].map((p) => (
+                        <Button
+                          key={p.value}
+                          variant={residentPreset === p.value && residentYearFilter === "all" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleResidentPreset(p.value)}
+                        >
+                          {p.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <ResidentAgeBracketChart />
+                    <ResidentsPerPurokChart />
+                  </div>
                 </div>
               )}
+
+              {/* Household */}
               {(analyticsCategory === "all" || analyticsCategory === "household") && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <EcologicalCompletionCard />
+                <div>
+                  <div className="flex flex-col gap-3 mb-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Home className="h-5 w-5 text-primary" />
+                        Household Analytics
+                      </h3>
+                      <Select value={householdYearFilter} onValueChange={handleHouseholdYear}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Filter by year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Years</SelectItem>
+                          <SelectItem value={new Date().getFullYear().toString()}>{new Date().getFullYear()}</SelectItem>
+                          <SelectItem value={(new Date().getFullYear() - 1).toString()}>{new Date().getFullYear() - 1}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: "All Time", value: "all" },
+                        { label: "Last 3 Days", value: "3d" },
+                        { label: "Last 7 Days", value: "7d" },
+                        { label: "Last 30 Days", value: "30d" },
+                        { label: "Last 3 Months", value: "3m" },
+                        { label: "Last 6 Months", value: "6m" },
+                      ].map((p) => (
+                        <Button
+                          key={p.value}
+                          variant={householdPreset === p.value && householdYearFilter === "all" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleHouseholdPreset(p.value)}
+                        >
+                          {p.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <EcologicalCompletionCard />
+                  </div>
                 </div>
               )}
             </div>
@@ -493,13 +633,49 @@ const ViewReportsTab = () => {
           <>
             <Separator className="mb-8" />
             <div className="mb-8">
-              <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-                <FileText className="h-5 w-5 text-primary" />
-                Certificate Services Analytics
-              </h3>
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Certificate Services Analytics
+                  </h3>
+                  <Select value={certYearFilter} onValueChange={handleCertYear}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Years</SelectItem>
+                      {certYearCounts.map(([year, count]) => (
+                        <SelectItem key={year} value={year}>
+                          {year} — {count} request{count !== 1 ? "s" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "All Time", value: "all" },
+                    { label: "Last 3 Days", value: "3d" },
+                    { label: "Last 7 Days", value: "7d" },
+                    { label: "Last 30 Days", value: "30d" },
+                    { label: "Last 3 Months", value: "3m" },
+                    { label: "Last 6 Months", value: "6m" },
+                  ].map((p) => (
+                    <Button
+                      key={p.value}
+                      variant={certPreset === p.value && certYearFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleCertPreset(p.value)}
+                    >
+                      {p.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <CertificateMonthlyChart certificates={certificates} />
-                <CertificateTypePieChart certificates={certificates} />
+                <CertificateMonthlyChart certificates={analyticsCertificates} />
+                <CertificateTypePieChart certificates={analyticsCertificates} />
               </div>
             </div>
           </>

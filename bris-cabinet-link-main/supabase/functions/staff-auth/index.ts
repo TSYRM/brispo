@@ -871,7 +871,7 @@ serve(async (req) => {
         .order('created_at', { ascending: false });
 
       if (statusFilter) {
-        query = query.eq('status', statusFilter);
+        query = query.ilike('status', statusFilter);
       }
 
       const { data, error } = await query;
@@ -913,29 +913,35 @@ serve(async (req) => {
         );
       }
 
-      const { data, error } = await supabase
+      const normalizedStatus = status?.toLowerCase();
+
+      const updateObj: Record<string, unknown> = {
+        status: normalizedStatus,
+        processed_by: processedBy || session.full_name,
+        notes: notes || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (normalizedStatus === 'rejected' && notes) {
+        updateObj.rejection_reason = notes;
+      }
+
+      const { error } = await supabase
         .from('certificate_requests')
-        .update({ 
-          status,
-          processed_by: processedBy || session.full_name,
-          notes: notes || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', requestId)
-        .select()
-        .single();
+        .update(updateObj)
+        .eq('id', requestId);
 
       if (error) {
         console.error('Error updating request status:', error);
         return new Response(
-          JSON.stringify({ error: 'Failed to update request status' }),
+          JSON.stringify({ error: `Failed to update request status: ${error.message || error.code || JSON.stringify(error)}` }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       console.log('Request status updated:', requestId, 'to:', status, 'by:', session.username);
       return new Response(
-        JSON.stringify({ success: true, data }),
+        JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -2916,7 +2922,7 @@ serve(async (req) => {
       const { count, error } = await supabase
         .from('certificate_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
+        .ilike('status', 'pending');
 
       if (error) {
         console.error('Error fetching pending certificates count:', error);

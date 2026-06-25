@@ -177,7 +177,7 @@ interface PendingRequest {
   householdNumber?: string;
   purpose?: string;
   priority?: string;
-  readyDate?: string;
+  preferredPickupDate?: string;
   rejectionReason?: string;
   residentNotes?: string;
   birthDate?: string;
@@ -616,7 +616,7 @@ const StaffDashboard = () => {
           householdNumber: item.household_number || undefined,
           purpose: item.purpose || undefined,
           priority: item.priority || 'Normal',
-          readyDate: item.preferred_pickup_date 
+          preferredPickupDate: item.preferred_pickup_date
             ? new Date(item.preferred_pickup_date).toLocaleDateString()
             : undefined,
           residentNotes: item.household_number ? `Household: ${item.household_number}` : undefined,
@@ -648,7 +648,7 @@ const StaffDashboard = () => {
             ? new Date(item.updated_at).toLocaleString() 
             : undefined,
           notes: item.notes || undefined,
-          rejectionReason: item.notes || undefined,
+          rejectionReason: item.rejection_reason || undefined,
         }));
         setRecentRequests(mappedRecent);
       }
@@ -3116,7 +3116,7 @@ const StaffDashboard = () => {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Preferred Pickup Date</Label>
-                    <p>{detailsRequest.readyDate || 'Not specified'}</p>
+                    <p>{detailsRequest.preferredPickupDate || 'Not specified'}</p>
                   </div>
                   <div className="space-y-1 col-span-2">
                     <Label className="text-xs text-muted-foreground">Purpose</Label>
@@ -3145,18 +3145,18 @@ const StaffDashboard = () => {
                         <p>{detailsRequest.processedDate}</p>
                       </div>
                     )}
-                    {detailsRequest.notes && (
+                    {detailsRequest.notes && detailsRequest.status !== 'rejected' && (
                       <div className="space-y-1 col-span-2">
                         <Label className="text-xs text-muted-foreground">Admin Notes</Label>
                         <p className="text-sm">{detailsRequest.notes}</p>
                       </div>
                     )}
-                    {detailsRequest.rejectionReason && (
+                    {(detailsRequest.rejectionReason || (detailsRequest.status === 'rejected' && detailsRequest.notes)) && (
                       <div className="space-y-1 col-span-2">
                         <Label className="text-xs text-muted-foreground text-red-600 flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" /> Rejection Reason
                         </Label>
-                        <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{detailsRequest.rejectionReason}</p>
+                        <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{detailsRequest.rejectionReason || detailsRequest.notes}</p>
                       </div>
                     )}
                   </div>
