@@ -39,7 +39,11 @@ function isAllowedOrigin(origin: string | null): boolean {
   const lovablePreviewPattern = /^https:\/\/[a-z0-9-]+\.lovable\.app$/;
   const lovableProjectPattern = /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/;
   if (lovablePreviewPattern.test(origin) || lovableProjectPattern.test(origin)) return true;
-  
+
+  // Allow localhost for local development
+  const localhostPattern = /^https?:\/\/localhost(:\d+)?$/;
+  if (localhostPattern.test(origin)) return true;
+
   return false;
 }
 

@@ -2275,26 +2275,20 @@ const StaffDashboard = () => {
                   </Card>
                 )}
 
-                {/* Status Filter Dropdown */}
-                <div className="flex items-center gap-4">
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="All">All Requests</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Under Review">Under Review</SelectItem>
-                      <SelectItem value="Incomplete Requirements">Incomplete Requirements</SelectItem>
-                      <SelectItem value="Verifying">Verifying</SelectItem>
-                      <SelectItem value="Approved">Approved</SelectItem>
-                      <SelectItem value="Ready for Pickup">Ready for Pickup</SelectItem>
-                      <SelectItem value="Released">Released</SelectItem>
-                      <SelectItem value="Rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Status Filter Tabs */}
+                <Tabs value={statusFilter} onValueChange={setStatusFilter} className="mb-2">
+                  <TabsList className="flex-wrap h-auto">
+                    <TabsTrigger value="All">All</TabsTrigger>
+                    <TabsTrigger value="Pending">Pending</TabsTrigger>
+                    <TabsTrigger value="Under Review">Under Review</TabsTrigger>
+                    <TabsTrigger value="Verifying">Verifying</TabsTrigger>
+                    <TabsTrigger value="Incomplete Requirements">Incomplete</TabsTrigger>
+                    <TabsTrigger value="Approved">Approved</TabsTrigger>
+                    <TabsTrigger value="Ready for Pickup">Ready for Pickup</TabsTrigger>
+                    <TabsTrigger value="Released">Released</TabsTrigger>
+                    <TabsTrigger value="Rejected">Rejected</TabsTrigger>
+                  </TabsList>
+                </Tabs>
 
                 {/* Search and Sort Controls */}
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">

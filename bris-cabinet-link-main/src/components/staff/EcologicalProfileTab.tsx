@@ -2152,11 +2152,31 @@ const EcologicalProfileTab = () => {
   const renderHouseholdMembersTab = () => {
     if (!selectedHousehold) {
       return (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>No Household Selected</AlertTitle>
-          <AlertDescription>Please select a household in the Basic Info tab first.</AlertDescription>
-        </Alert>
+        <div className="space-y-4">
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>No Household Selected</AlertTitle>
+            <AlertDescription>Choose a household below to view its members.</AlertDescription>
+          </Alert>
+          <div className="space-y-2">
+            <Label>Select Household</Label>
+            <Select onValueChange={(id) => {
+              const h = households.find(hh => hh.id === id);
+              if (h) handleSelectHousehold(h);
+            }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a household..." />
+              </SelectTrigger>
+              <SelectContent>
+                {households.map(h => (
+                  <SelectItem key={h.id} value={h.id}>
+                    {h.household_number} — {h.address || h.street_purok || "No address"} ({h.residents?.length || 0} member{(h.residents?.length || 0) !== 1 ? "s" : ""})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       );
     }
 

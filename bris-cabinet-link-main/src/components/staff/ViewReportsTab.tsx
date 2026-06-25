@@ -41,7 +41,6 @@ import IncidentMonthlyChart from "@/components/staff/IncidentMonthlyChart";
 import IncidentPurokChart from "@/components/staff/IncidentPurokChart";
 import EcologicalCompletionCard from "@/components/staff/EcologicalCompletionCard";
 import ResidentAgeBracketChart from "@/components/staff/ResidentAgeBracketChart";
-import HouseholdIncomeChart from "@/components/staff/HouseholdIncomeChart";
 import ResidentsPerPurokChart from "@/components/staff/ResidentsPerPurokChart";
 
 interface IncidentReport {
@@ -263,17 +262,61 @@ const ViewReportsTab = () => {
     return true;
   };
 
+  // Year filter (report list)
+  const [yearFilter, setYearFilter] = useState<string>("all");
+  // Analytics chart filters
+  const [analyticsYearFilter, setAnalyticsYearFilter] = useState<string>("all");
+  const [analyticsPreset, setAnalyticsPreset] = useState<string>("all");
+
+  const incidentYearCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    incidents.forEach(i => {
+      const year = i.rawCreatedAt ? new Date(i.rawCreatedAt).getFullYear().toString() : "";
+      if (year) counts[year] = (counts[year] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => Number(b[0]) - Number(a[0]));
+  }, [incidents]);
+
+  const handleAnalyticsPreset = (preset: string) => {
+    setAnalyticsPreset(preset);
+    setAnalyticsYearFilter("all");
+  };
+
+  const handleAnalyticsYear = (year: string) => {
+    setAnalyticsYearFilter(year);
+    setAnalyticsPreset("all");
+  };
+
+  const analyticsIncidents = useMemo(() => {
+    let result = incidents;
+    if (analyticsYearFilter !== "all") {
+      result = result.filter(i => i.rawCreatedAt && new Date(i.rawCreatedAt).getFullYear().toString() === analyticsYearFilter);
+    } else if (analyticsPreset !== "all") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      let cutoff = new Date(today);
+      if (analyticsPreset === "3d") cutoff.setDate(cutoff.getDate() - 3);
+      else if (analyticsPreset === "7d") cutoff.setDate(cutoff.getDate() - 7);
+      else if (analyticsPreset === "30d") cutoff.setDate(cutoff.getDate() - 30);
+      else if (analyticsPreset === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
+      else if (analyticsPreset === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
+      result = result.filter(i => i.rawCreatedAt && new Date(i.rawCreatedAt) >= cutoff);
+    }
+    return result;
+  }, [incidents, analyticsYearFilter, analyticsPreset]);
+
   const filteredIncidents = incidents.filter(i => {
-    const matchesSearch = 
+    const matchesSearch =
       i.complainantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       i.incidentNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       i.incidentType.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDate = isWithinDateRange(i.createdAt);
-    return matchesSearch && matchesDate;
+    const matchesYear = yearFilter === "all" || (i.rawCreatedAt && new Date(i.rawCreatedAt).getFullYear().toString() === yearFilter);
+    return matchesSearch && matchesDate && matchesYear;
   });
 
   const filteredCertificates = certificates.filter(c => {
-    const matchesSearch = 
+    const matchesSearch =
       c.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.controlNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.certificateType.toLowerCase().includes(searchQuery.toLowerCase());
@@ -284,6 +327,7 @@ const ViewReportsTab = () => {
   const clearDateFilters = () => {
     setStartDate(undefined);
     setEndDate(undefined);
+    setYearFilter("all");
   };
 
   const pendingIncidentsCount = incidents.filter(i => i.approvalStatus === "pending").length;
@@ -362,19 +406,55 @@ const ViewReportsTab = () => {
           <>
             <Separator className="mb-8" />
             <div className="mb-8">
-              <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                Incident Analytics
-              </h3>
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                    Incident Analytics
+                  </h3>
+                  <Select value={analyticsYearFilter} onValueChange={handleAnalyticsYear}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Years</SelectItem>
+                      {incidentYearCounts.map(([year, count]) => (
+                        <SelectItem key={year} value={year}>
+                          {year} — {count} report{count !== 1 ? "s" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "All Time", value: "all" },
+                    { label: "Last 3 Days", value: "3d" },
+                    { label: "Last 7 Days", value: "7d" },
+                    { label: "Last 30 Days", value: "30d" },
+                    { label: "Last 3 Months", value: "3m" },
+                    { label: "Last 6 Months", value: "6m" },
+                  ].map((p) => (
+                    <Button
+                      key={p.value}
+                      variant={analyticsPreset === p.value && analyticsYearFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleAnalyticsPreset(p.value)}
+                    >
+                      {p.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <IncidentMonthlyChart
-                  incidents={incidents.map((i) => ({
+                  incidents={analyticsIncidents.map((i) => ({
                     incidentType: i.incidentType,
                     createdAt: i.createdAt,
                   }))}
                 />
                 <IncidentPurokChart
-                  incidents={incidents.map((i) => ({
+                  incidents={analyticsIncidents.map((i) => ({
                     incidentLocation: i.incidentLocation,
                     rawCreatedAt: i.rawCreatedAt,
                   }))}
@@ -401,7 +481,6 @@ const ViewReportsTab = () => {
               )}
               {(analyticsCategory === "all" || analyticsCategory === "household") && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <HouseholdIncomeChart />
                   <EcologicalCompletionCard />
                 </div>
               )}
@@ -479,6 +558,21 @@ const ViewReportsTab = () => {
                 <SelectItem value="rejected">{activeTab === "incidents" ? "Returned" : "Rejected"}</SelectItem>
               </SelectContent>
             </Select>
+            {activeTab === "incidents" && (
+              <Select value={yearFilter} onValueChange={setYearFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Filter by year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {incidentYearCounts.map(([year, count]) => (
+                    <SelectItem key={year} value={year}>
+                      {year} ({count} report{count !== 1 ? "s" : ""})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           
           {/* Date Range Filter */}
